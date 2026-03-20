@@ -19,8 +19,12 @@ def extract_text(file_path: str) -> str:
         finally:
             document.close()
     elif lower_path.endswith(".txt"):
-        with open(file_path, "r", encoding="utf-8") as file:
-            text = file.read()
+        try:
+            with open(file_path, "r", encoding="utf-8") as file:
+                text = file.read()
+        except UnicodeDecodeError:
+            with open(file_path, "r", encoding="latin-1") as file:
+                text = file.read()
     elif lower_path.endswith(".docx"):
         document = Document(file_path)
         for paragraph in document.paragraphs:
