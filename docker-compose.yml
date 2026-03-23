@@ -1,0 +1,66 @@
+version: '3.8'
+
+services:
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "${FRONTEND_PORT}:3001"
+    depends_on:
+      - api-gateway
+
+  postgres:
+    image: postgres:15
+    env_file:
+      - .env
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      - "${POSTGRES_PORT}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+
+  qdrant:
+    image: qdrant/qdrant:v1.5.1
+    ports:
+      - "${QDRANT_PORT}:6333"
+    volumes:
+      - qdrant_data:/qdrant/storage
+
+  api-gateway:
+    build:
+      context: ..
+      dockerfile: ./services/auth/Dockerfile
+    ports:
+      - "${GATEWAY_PORT}:8000"
+
+  ingestion-service:
+    build:
+      context: ..
+      dockerfile: ./services/ingestion/Dockerfile
+    depends_on:
+      - qdrant
+
+  llm-router:
+    build:
+      context: ..
+      dockerfile: ./services/llm_router/Dockerfile
+    ports:
+      - "${LLM_PORT}:8004"
+
+  embedding-service:
+    build:
+      context: ..
+      dockerfile: ./services/embedding/Dockerfile
+    ports:
+      - "${EMBEDDING_PORT}:8002"
+
+
+
+volumes:
+  postgres_data:
+  qdrant_data:

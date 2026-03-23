@@ -1,0 +1,38 @@
+services:
+  auth-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: authentication-backend
+    env_file:
+      - .env
+    ports:
+      - "8080:8080"
+    depends_on:
+      - db-auth
+      - redis-auth
+    networks:
+      - backend-network
+
+  db-auth:
+    image: postgres:15
+    container_name: jwt-auth-db
+    env_file:
+      - .env
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - backend-network
+
+  redis-auth:
+    image: redis:7-alpine
+    container_name: jwt-auth-redis
+    networks:
+      - backend-network
+
+volumes:
+  postgres_data:
+
+networks:
+  backend-network:
+    driver: bridge
