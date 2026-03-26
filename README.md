@@ -199,9 +199,93 @@
 
 #### `rag_app`
 
-* documents
-* ingestion_jobs
-* document_chunks (metadata only)
+---
+
+## 🧱 Database Schema (rag_app)
+
+Основные таблицы:
+
+### documents
+
+Хранит информацию о загруженных файлах.
+
+| поле            | описание                                 |
+|-----------------|------------------------------------------|
+| id              | UUID                                     |
+| organization_id | из JWT                                   |
+| filename        | имя файла                                |
+| storage_path    | путь в S3                                |
+| status          | uploaded / processing / indexed / failed |
+| size_bytes      | размер                                   |
+| created_at      | дата создания                            |
+
+---
+
+### ingestion_jobs
+
+Отвечает за асинхронный pipeline обработки.
+
+| поле        | описание                             |
+|-------------|--------------------------------------|
+| id          | UUID                                 |
+| document_id | ссылка на документ                   |
+| status      | pending / processing / done / failed |
+| error       | текст ошибки                         |
+| started_at  | время старта                         |
+| finished_at | время завершения                     |
+
+---
+
+### document_chunks
+
+Хранит текстовые чанки (source of truth).
+
+| поле        | описание           |
+|-------------|--------------------|
+| id          | UUID               |
+| document_id | ссылка на документ |
+| chunk_index | индекс             |
+| content     | текст              |
+| metadata    | JSONB              |
+
+---
+
+### rag_queries
+
+История запросов пользователей.
+
+| поле            | описание      |
+|-----------------|---------------|
+| id              | UUID          |
+| organization_id | tenant        |
+| user_id         | пользователь  |
+| query           | текст запроса |
+
+---
+
+### rag_answers
+
+Ответы LLM.
+
+| поле       | описание         |
+|------------|------------------|
+| id         | UUID             |
+| query_id   | ссылка на запрос |
+| answer     | текст ответа     |
+| model      | модель           |
+| latency_ms | время ответа     |
+
+---
+
+### rag_answer_sources
+
+Связь ответов с чанками (attribution).
+
+| поле      | описание      |
+|-----------|---------------|
+| answer_id | ответ         |
+| chunk_id  | источник      |
+| score     | релевантность |
 
 ---
 
@@ -243,4 +327,20 @@ organization_id
 5. LLM Router → LLM provider
 6. Ответ возвращается пользователю с источниками
 
+---
+
+## ⚙️ Local Development
+
+### Требования
+
+- Docker
+- Docker Compose
+
+---
+
+### 🚀 Запуск проекта
+
+```bash
+docker compose up --build
+```
 ---

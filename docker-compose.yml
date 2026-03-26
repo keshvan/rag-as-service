@@ -22,7 +22,7 @@ services:
       - "${POSTGRES_PORT}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./migrations:/docker-entrypoint-initdb.d
 
   qdrant:
     image: qdrant/qdrant:v1.5.1
@@ -34,28 +34,32 @@ services:
   api-gateway:
     build:
       context: ..
-      dockerfile: ./services/auth/Dockerfile
+      dockerfile: ./backend/services/gateway/Dockerfile
     ports:
       - "${GATEWAY_PORT}:8000"
+    depends_on:
+      - ingestion-service
+      - query-service
 
   ingestion-service:
     build:
       context: ..
-      dockerfile: ./services/ingestion/Dockerfile
+      dockerfile: ./backend/services/ingestion/Dockerfile
     depends_on:
       - qdrant
+      - postgres
 
   llm-router:
     build:
       context: ..
-      dockerfile: ./services/llm_router/Dockerfile
+      dockerfile: ./backend/services/llm_router/Dockerfile
     ports:
       - "${LLM_PORT}:8004"
 
   embedding-service:
     build:
       context: ..
-      dockerfile: ./services/embedding/Dockerfile
+      dockerfile: ./backend/services/embedding/Dockerfile
     ports:
       - "${EMBEDDING_PORT}:8002"
 
