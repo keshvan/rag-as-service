@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
@@ -15,10 +16,12 @@ import (
 
 type Server struct {
 	Router *chi.Mux
+	host   string
 	port   int
+	log    *slog.Logger
 }
 
-func NewHTTPServer(port int) *Server {
+func NewHTTPServer(host string, port int, log *slog.Logger) *Server {
 	r := chi.NewRouter()
 
 	r.Use(middleware.Logger)
@@ -26,25 +29,41 @@ func NewHTTPServer(port int) *Server {
 
 	return &Server{
 		Router: r,
+		host:   host,
 		port:   port,
+		log:    log,
 	}
 }
-
 func (s *Server) Run() error {
+	addr := fmt.Sprintf("%s:%d", s.host, s.port)
+
 	server := &http.Server{
-		Addr:    fmt.Sprintf(":%d", s.port),
+		Addr:    addr,
 		Handler: s.Router,
 	}
 
-	go func() {
-		sigChan := make(chan os.Signal, 1)
-		signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
-		<-sigChan
+	go s.gracefulShutdown(server)
 
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
-		server.Shutdown(ctx)
-	}()
+	s.log.Info("HTTP server started", "addr", addr)
 
-	return server.ListenAndServe()
+	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		return err
+	}
+
+	return nil
+}
+
+func (s *Server) gracefulShutdown(server *http.Server) {
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+
+	<-sigChan
+	s.log.Info("shutting down HTTP server")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	if err := server.Shutdown(ctx); err != nil {
+		s.log.Error("HTTP shutdown error", "err", err)
+	}
 }

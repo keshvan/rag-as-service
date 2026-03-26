@@ -3,7 +3,7 @@ package database
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -15,7 +15,7 @@ type DBOptions struct {
 	MaxConnections int32
 }
 
-func NewPostgresPool(ctx context.Context, dsn string, opts DBOptions) (*pgxpool.Pool, error) {
+func NewPostgresPool(ctx context.Context, dsn string, opts DBOptions, log *slog.Logger) (*pgxpool.Pool, error) {
 	config, err := pgxpool.ParseConfig(dsn)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse url: %w", err)
@@ -25,24 +25,30 @@ func NewPostgresPool(ctx context.Context, dsn string, opts DBOptions) (*pgxpool.
 
 	var pool *pgxpool.Pool
 	for i := 1; i <= opts.MaxRetries; i++ {
-		log.Printf("Connecting to Postgres (attempt %d/%d)...", i, opts.MaxRetries)
+		log.Info("connecting to postgres", "attempt", i)
 
 		pool, err = pgxpool.NewWithConfig(ctx, config)
 		if err == nil {
-			err = pool.Ping(ctx)
-			if err == nil {
-				log.Println("Sucessfuly connected to Postgres")
+			if err = pool.Ping(ctx); err == nil {
+				log.Info("postgres connected")
 				return pool, nil
 			}
 		}
 
+		if pool != nil {
+			pool.Close()
+		}
+
 		if i < opts.MaxRetries {
-			log.Printf("Postgres not ready: %v. Retrying in %v...", err, opts.RetryInterval)
+			log.Warn("postgres not ready",
+				"err", err,
+				"retry_in", opts.RetryInterval,
+			)
 
 			select {
 			case <-time.After(opts.RetryInterval):
 			case <-ctx.Done():
-				return nil, fmt.Errorf("context cancelled during db connection: %w", ctx.Err())
+				return nil, ctx.Err()
 			}
 		}
 	}

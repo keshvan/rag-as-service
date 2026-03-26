@@ -1,11 +1,12 @@
 package server
 
 import (
-	"log"
+	"log/slog"
 	"net"
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/keshvan/rag-as-service/backend/pkg/common/config"
 	"github.com/keshvan/rag-as-service/backend/pkg/common/grpc/interceptors"
@@ -17,6 +18,7 @@ import (
 type GRPCServer struct {
 	server *grpc.Server
 	cfg    config.GRPCServerConfig
+	log    *slog.Logger
 }
 
 func NewGRPCServer(cfg config.GRPCServerConfig) *GRPCServer {
@@ -36,15 +38,32 @@ func (s *GRPCServer) Run(registerFunc func(*grpc.Server)) error {
 
 	registerFunc(s.server)
 
-	go func() {
-		stop := make(chan os.Signal, 1)
-		signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
-		<-stop
+	go s.gracefulShutdown()
 
-		log.Printf("Shutting down gRPC server on %s...", addr)
+	s.log.Info("gRPC server started", "addr", addr)
+
+	return s.server.Serve(lis)
+}
+
+func (s *GRPCServer) gracefulShutdown() {
+	stop := make(chan os.Signal, 1)
+	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
+
+	<-stop
+	s.log.Info("shutting down gRPC server")
+
+	done := make(chan struct{})
+
+	go func() {
 		s.server.GracefulStop()
+		close(done)
 	}()
 
-	log.Printf("gRPC server started on %s", addr)
-	return s.server.Serve(lis)
+	select {
+	case <-done:
+		s.log.Info("gRPC server stopped gracefully")
+	case <-time.After(5 * time.Second):
+		s.log.Warn("forcing gRPC stop")
+		s.server.Stop()
+	}
 }
