@@ -1,0 +1,30 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-page: 244 248 251;
+  --color-panel: 255 255 255;
+  --color-accent: 14 116 144;
+  --color-accent-strong: 8 102 126;
+  --color-border: 203 213 225;
+  --color-foreground: 15 23 42;
+  --color-muted: 71 85 105;
+}
+
+* {
+  border-color: rgb(var(--color-border) / 0.7);
+}
+
+html,
+body {
+  min-height: 100%;
+}
+
+body {
+  color: rgb(var(--color-foreground));
+  background:
+    radial-gradient(circle at 15% 0%, rgba(14, 116, 144, 0.18), transparent 34%),
+    radial-gradient(circle at 100% 30%, rgba(245, 158, 11, 0.16), transparent 32%),
+    rgb(var(--color-page));
+}
