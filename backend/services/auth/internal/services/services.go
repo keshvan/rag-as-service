@@ -9,11 +9,11 @@ import (
 	"math/big"
 	"time"
 
+	"github.com/google/uuid"
+	"github.com/keshvan/rag-as-service/backend/services/auth/internal/authctx"
 	"github.com/keshvan/rag-as-service/backend/services/auth/internal/entity"
 	"github.com/keshvan/rag-as-service/backend/services/auth/internal/lib/jwt"
 	"github.com/keshvan/rag-as-service/backend/services/auth/internal/repo"
-	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -132,12 +132,12 @@ func (auth *Auth) SendingEmailWithCode(ctx context.Context, email, password, org
 	}
 
 	pendingUser := entity.PendingUser{
-		Email:    email,
-		PassHash: passHash,
-		Role: "owner",
+		Email:            email,
+		PassHash:         passHash,
+		Role:             "owner",
 		OrganizationName: orgName,
-		OrganizationURL: orgURL,
-		Code:     code,
+		OrganizationURL:  orgURL,
+		Code:             code,
 	}
 
 	err = auth.redisStorage.SaveCode(ctx, pendingUser, 10*time.Minute)
@@ -204,7 +204,7 @@ func (auth *Auth) ConfirmVerificationCode(ctx context.Context, email, code strin
 	return guid, nil
 }
 
-func (auth *Auth) Login(ctx *gin.Context, email string, password string) (jwt.TokenPair, string, error) {
+func (auth *Auth) Login(ctx context.Context, email string, password, userAgent, ip string) (jwt.TokenPair, string, error) {
 	const op = "auth.Login"
 
 	log := auth.log.With(slog.String("op", op), slog.String("email", email))
@@ -236,8 +236,8 @@ func (auth *Auth) Login(ctx *gin.Context, email string, password string) (jwt.To
 		return jwt.TokenPair{}, "", fmt.Errorf("%s: %w", op, err)
 	}
 
-	userAgent := ctx.GetHeader("User-Agent")
-	ip := ctx.ClientIP()
+	//userAgent := ctx.GetHeader("User-Agent")
+	//ip := ctx.ClientIP()
 
 	refreshToken := entity.RefreshToken{
 		UserGUID:  user.GUID,
@@ -258,24 +258,34 @@ func (auth *Auth) Login(ctx *gin.Context, email string, password string) (jwt.To
 	return jwt.TokenPair{AccessToken: tokenPair.AccessToken, RefreshToken: tokenPair.RefreshToken, RefreshTokenHash: tokenPair.RefreshTokenHash}, user.GUID, nil
 }
 
-func (auth *Auth) GetTokenPairByUserGUID(ctx *gin.Context, guid string) (jwt.TokenPair, error) {
+func (auth *Auth) GetTokenPairByUserGUID(ctx context.Context, targetGUID, userAgent, ip string) (jwt.TokenPair, error) {
 	const op = "auth.GetTokenPairByUserGUID"
 
-	log := auth.log.With(slog.String("op", op), slog.String("guid", guid))
+	log := auth.log.With(slog.String("op", op), slog.String("guid", targetGUID))
 	log.Info("getting token pair by user guid")
 
-	currentUserGUID, err := auth.GetCurrentUserGUID(ctx)
-	if err != nil {
-		log.Error("failed to get current user GUID", err)
-		return jwt.TokenPair{}, fmt.Errorf("%s: %w", op, err)
+	currentUserGUID, ok := authctx.UserGUIDFromContext(ctx)
+	if !ok || currentUserGUID == "" {
+		return jwt.TokenPair{}, ErrUserNotFound
 	}
 
-	if currentUserGUID != guid {
-		log.Error("invalid user GUID")
+	if currentUserGUID != targetGUID {
 		return jwt.TokenPair{}, ErrAccessDenied
 	}
 
-	user, err := auth.userRepo.GetUserByGUID(ctx, guid)
+	/*
+		currentUserGUID, err := auth.GetCurrentUserGUID(ctx)
+		if err != nil {
+			log.Error("failed to get current user GUID", err)
+			return jwt.TokenPair{}, fmt.Errorf("%s: %w", op, err)
+		}
+
+		if currentUserGUID != guid {
+			log.Error("invalid user GUID")
+			return jwt.TokenPair{}, ErrAccessDenied
+		}*/
+
+	user, err := auth.userRepo.GetUserByGUID(ctx, targetGUID)
 	if err != nil {
 		if errors.Is(err, repo.ErrUserNotFound) {
 			return jwt.TokenPair{}, ErrUserNotFound
@@ -292,8 +302,8 @@ func (auth *Auth) GetTokenPairByUserGUID(ctx *gin.Context, guid string) (jwt.Tok
 		return jwt.TokenPair{}, fmt.Errorf("%s: %w", op, err)
 	}
 
-	userAgent := ctx.GetHeader("User-Agent")
-	ip := ctx.ClientIP()
+	//userAgent := ctx.GetHeader("User-Agent")
+	//ip := ctx.ClientIP()
 
 	refreshToken := entity.RefreshToken{
 		UserGUID:  user.GUID,
@@ -316,38 +326,48 @@ func (auth *Auth) GetTokenPairByUserGUID(ctx *gin.Context, guid string) (jwt.Tok
 	return jwt.TokenPair{AccessToken: newTokenPair.AccessToken, RefreshToken: newTokenPair.RefreshToken, RefreshTokenHash: newTokenPair.RefreshTokenHash}, nil
 }
 
-func (auth *Auth) GetCurrentUserGUID(ctx *gin.Context) (string, error) {
+func (auth *Auth) GetCurrentUserGUID(ctx context.Context) (string, error) {
 	const op = "auth.GetCurrentUserGuid"
 
 	log := auth.log.With(slog.String("op", op))
 	log.Info("getting current user guid")
 
-	guid, exists := ctx.Get("user_guid")
-	if !exists {
+	guid, ok := authctx.UserGUIDFromContext(ctx)
+	if !ok || guid == "" {
 		return "", ErrUserNotFound
 	}
-
-	userGUID, ok := guid.(string)
-	if !ok {
-		return "", ErrInvalidToken
-	}
+	/*
+		userGUID, ok := guid.(string)
+		if !ok {
+			return "", ErrInvalidToken
+		}*/
 
 	log.Info("got current user guid")
 
-	return userGUID, nil
+	return guid, nil
 }
 
-func (auth *Auth) RefreshTokens(ctx *gin.Context, refreshToken string) (jwt.TokenPair, error) {
+func (auth *Auth) RefreshTokens(ctx context.Context, refreshToken, userAgent, ip string) (jwt.TokenPair, error) {
 	const op = "auth.RefreshTokens"
 
 	log := auth.log.With(slog.String("op", op))
 	log.Info("refreshing tokens")
 
-	userGUID, err := auth.GetCurrentUserGUID(ctx)
-	if err != nil {
-		log.Warn("missing user guid in context")
+	userGUID, ok := authctx.UserGUIDFromContext(ctx)
+	if !ok || userGUID == "" {
 		return jwt.TokenPair{}, ErrUserNotFound
 	}
+
+	sessionID, ok := authctx.SessionIDFromContext(ctx)
+	if !ok || sessionID == "" {
+		return jwt.TokenPair{}, ErrInvalidToken
+	}
+	/*
+		userGUID, err := auth.GetCurrentUserGUID(ctx)
+		if err != nil {
+			log.Warn("missing user guid in context")
+			return jwt.TokenPair{}, ErrUserNotFound
+		}*/
 
 	savedRefreshToken, err := auth.tokenRepo.GetRefreshTokenByUserGUID(ctx, userGUID)
 	if err != nil {
@@ -380,37 +400,47 @@ func (auth *Auth) RefreshTokens(ctx *gin.Context, refreshToken string) (jwt.Toke
 		return jwt.TokenPair{}, ErrInvalidToken
 	}
 
-	sessionValue, exists := ctx.Get("session_id")
-	if !exists {
-		log.Warn("missing session_id in context")
-		return jwt.TokenPair{}, ErrInvalidToken
-	}
-
-	sessionID, ok := sessionValue.(string)
-	if !ok {
-		log.Warn("invalid session_id in context")
-		return jwt.TokenPair{}, ErrInvalidToken
-	}
-
 	if sessionID != savedRefreshToken.SessionID {
-		log.Warn("invalid session_id in context")
 		return jwt.TokenPair{}, ErrInvalidToken
 	}
 
-	incomingUserAgent := ctx.GetHeader("User-Agent")
-	if incomingUserAgent != savedRefreshToken.UserAgent {
-		log.Warn("user agent does not match")
+	if userAgent != savedRefreshToken.UserAgent {
+		_ = auth.Logout(ctx)
+		return jwt.TokenPair{}, ErrInvalidToken
+	}
 
-		logoutError := auth.Logout(ctx)
-		if logoutError != nil {
-			log.Error("failed to logout", logoutError)
-			return jwt.TokenPair{}, logoutError
+	/*
+			sessionValue, exists := ctx.Get("session_id")
+			if !exists {
+				log.Warn("missing session_id in context")
+				return jwt.TokenPair{}, ErrInvalidToken
+			}
+
+		sessionID, ok := sessionValue.(string)
+		if !ok {
+			log.Warn("invalid session_id in context")
+			return jwt.TokenPair{}, ErrInvalidToken
 		}
 
-		return jwt.TokenPair{}, ErrInvalidToken
-	}
+		if sessionID != savedRefreshToken.SessionID {
+			log.Warn("invalid session_id in context")
+			return jwt.TokenPair{}, ErrInvalidToken
+		}
 
-	incomingIP := ctx.ClientIP()
+		incomingUserAgent := ctx.GetHeader("User-Agent")
+		if incomingUserAgent != savedRefreshToken.UserAgent {
+			log.Warn("user agent does not match")
+
+			logoutError := auth.Logout(ctx)
+			if logoutError != nil {
+				log.Error("failed to logout", logoutError)
+				return jwt.TokenPair{}, logoutError
+			}
+
+			return jwt.TokenPair{}, ErrInvalidToken
+		}
+
+		incomingIP := ctx.ClientIP()*/
 
 	user, err := auth.userRepo.GetUserByGUID(ctx, userGUID)
 	if err != nil {
@@ -427,8 +457,8 @@ func (auth *Auth) RefreshTokens(ctx *gin.Context, refreshToken string) (jwt.Toke
 	newRefreshToken := entity.RefreshToken{
 		UserGUID:  user.GUID,
 		TokenHash: newTokenPair.RefreshTokenHash,
-		UserAgent: incomingUserAgent,
-		IP:        incomingIP,
+		UserAgent: userAgent,
+		IP:        ip,
 		SessionID: savedRefreshToken.SessionID,
 		ExpiresAt: time.Now().Add(auth.refreshTokenTTL),
 		CreatedAt: time.Now(),
@@ -444,7 +474,7 @@ func (auth *Auth) RefreshTokens(ctx *gin.Context, refreshToken string) (jwt.Toke
 	return jwt.TokenPair{AccessToken: newTokenPair.AccessToken, RefreshToken: newTokenPair.RefreshToken, RefreshTokenHash: newTokenPair.RefreshTokenHash}, nil
 }
 
-func (auth *Auth) Logout(ctx *gin.Context) error {
+func (auth *Auth) Logout(ctx context.Context) error {
 	const op = "auth.Logout"
 
 	log := auth.log.With(slog.String("op", op))

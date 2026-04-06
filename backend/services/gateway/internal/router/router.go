@@ -25,7 +25,7 @@ func RegisterRoutes(r *chi.Mux, h Handlers, jwtSecret string) {
 			protected.Use(middleware.AuthMiddleware(jwtSecret))
 
 			protected.Get("/me", h.Auth.GetCurrentUserGUID)
-			protected.Get("/tokens", h.Auth.GetTokenPairByUserGUID)
+			protected.Post("/tokens", h.Auth.GetTokenPairByUserGUID)
 			protected.Post("/logout", h.Auth.Logout)
 			protected.Post("/refresh", h.Auth.RefreshTokens)
 		})
