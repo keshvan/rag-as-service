@@ -1,346 +1,480 @@
-# RAG-as-a-Service Platform (MVP)
+# Техническое задание
 
-## 📌 Overview
+## Система RAG-as-a-Service (Retrieval-Augmented Generation Platform)
 
-Данный проект представляет собой MVP платформы **RAG-as-a-Service (Retrieval-Augmented Generation)**, позволяющей организациям:
-
-* Загружать собственные документы (PDF, TXT, DOCX)
-* Индексировать их в векторной базе данных
-* Выполнять поиск и задавать вопросы через LLM
-* Получать ответы с указанием источников (attribution)
-
-Ключевое требование системы — **multi-tenancy**: строгая изоляция данных между организациями на всех уровнях.
-
-
-## 🔐 Multi-Tenancy Model
-
-Изоляция данных реализована на нескольких уровнях:
-
-1. **JWT Payload**
-
-   * Каждый токен содержит:
-
-     * `user_id`
-     * `organization_id`
-
-2. **API Layer**
-
-   * Gateway валидирует токен локально
-   * Пробрасывает `organization_id` во все downstream сервисы
-
-3. **Vector DB (Qdrant)**
-
-   * Все записи содержат `organization_id`
-   * Каждый запрос к Retrieval Service включает фильтр по `organization_id`
-
-4. **Database**
-
-   * Данные логически разделены по организациям
+**Дата:** 08.04.2026
 
 ---
 
-## 🧩 Services
+# 1. ВВЕДЕНИЕ
 
-### 1. Auth Service (Go)
+## 1.1 Цель документа
 
-**Ответственность:**
+Настоящий документ определяет требования к разработке платформы RAG-as-a-Service — масштабируемой backend-системы для работы с пользовательскими документами с использованием подхода Retrieval-Augmented Generation (RAG) .
 
-* Регистрация и аутентификация пользователей
-* Управление организациями
-* Генерация JWT токенов (асимметричная подпись)
+## 1.2 Область применения
 
-**Особенности:**
+Система предназначена для:
 
-* Использует приватный ключ (RSA/EdDSA)
-* В payload токена добавляет:
+* хранения и обработки пользовательских документов
+* семантического поиска
+* генерации ответов с использованием LLM
+* обеспечения изоляции данных между организациями
 
-  ```json
-  {
-    "user_id": "...",
-    "organization_id": "..."
-  }
-  ```
+## 1.3 Определения и сокращения
 
----
+* RAG — Retrieval-Augmented Generation
+* LLM — Large Language Model
+* API — Application Programming Interface
+* JWT — JSON Web Token
+* S3 — объектное хранилище
+* gRPC — протокол удалённых вызовов
+* Multi-tenancy — мультиарендность
 
-### 2. API Gateway (Go)
+## 1.4 Целевая аудитория
 
-**Единая точка входа в систему**
-
-**Ответственность:**
-
-* Локальная валидация JWT (по публичному ключу)
-* Роутинг запросов:
-
-  * `/auth/*` → Auth Service
-  * `/documents/*` → internal handlers
-  * `/rag/*` → Retrieval + LLM
-* Генерация **S3 Pre-signed URLs** для загрузки файлов
-
-**Почему важно:**
-
-* Не делает сетевых вызовов к Auth Service при каждой проверке токена
-* Уменьшает latency и повышает отказоустойчивость
+* Backend-разработчики
+* ML-инженеры
+* Системные архитекторы
+* DevOps-инженеры
+* Заказчик
 
 ---
 
-### 3. Storage (S3)
+# 2. ОБЩЕЕ ОПИСАНИЕ СИСТЕМЫ
 
-**Назначение:**
+## 2.1 Контекст системы
 
-* Хранение оригинальных документов
+Платформа обеспечивает обработку документов пользователей с последующим поиском и генерацией ответов через LLM. Система работает в многопользовательском режиме с полной изоляцией данных между организациями .
 
-**Особенности:**
+## 2.2 Архитектурный подход
 
-* Прямая загрузка с клиента через pre-signed URL
-* API Gateway не участвует в передаче файлов
+* Архитектура: микросервисная
+* Развертывание: cloud/on-premise (гибридно возможно)
+* Коммуникация:
+
+  * REST (внешние API)
+  * gRPC (внутренние сервисы)
+* Обработка: асинхронная (pipeline ingestion)
+
+## 2.3 Основные функциональные блоки
+
+* Аутентификация и управление пользователями
+* Загрузка и обработка документов
+* Генерация embeddings
+* Семантический поиск
+* Генерация ответов (LLM)
+* UI для взаимодействия
 
 ---
 
-### 4. Ingestion Service (Go / Python, Async)
+# 3. ФУНКЦИОНАЛЬНЫЕ ТРЕБОВАНИЯ
 
-**Асинхронный pipeline обработки документов**
+## 3.1 Модуль аутентификации (Auth Service)
 
-**Этапы:**
+### 1.1 Аутентификация пользователей
 
-1. Получение события о загрузке файла
-2. Парсинг документа (PDF, DOCX, TXT)
-3. Chunking (разбиение на части)
-4. Генерация embeddings
-5. Сохранение в Qdrant
-6. Обновление статуса документа
+**Приоритет:** Критический
 
-**Метаданные каждого чанка:**
+Требования:
 
-```json
-{
-  "organization_id": "...",
-  "document_id": "...",
-  "chunk_index": 0,
-  "text": "..."
-}
+* Генерация JWT токенов
+* Включение в payload:
+
+  * user_id
+  * organization_id
+* Подпись токенов (RSA / EdDSA)
+
+---
+
+## 3.2 API Gateway
+
+### 2.1 Управление запросами
+
+**Приоритет:** Критический
+
+Требования:
+
+* Валидация JWT локально
+* Роутинг запросов
+* Генерация pre-signed URL для S3
+* Проброс organization_id во все сервисы
+
+---
+
+## 3.3 Ingestion Service
+
+### 3.1 Обработка документов
+
+**Приоритет:** Высокий
+
+Требования:
+
+* Получение событий загрузки из S3
+* Парсинг документов (PDF, DOCX, TXT)
+* Разбиение на chunks (с overlap)
+* Генерация embeddings
+* Сохранение в векторную БД
+* Асинхронная обработка
+
+---
+
+## 3.4 Embedding Service
+
+### 4.1 Генерация embeddings
+
+**Приоритет:** Критический
+
+Требования:
+
+* Методы:
+
+  * Embed(text)
+  * EmbedBatch(texts[])
+* Stateless сервис
+* Поддержка разных провайдеров
+
+---
+
+## 3.5 Retrieval Service
+
+### 5.1 Семантический поиск
+
+**Приоритет:** Критический
+
+Требования:
+
+* Генерация embedding запроса
+* Поиск в векторной БД (Qdrant)
+* Обязательная фильтрация:
+
+  * organization_id
+
+---
+
+## 3.6 LLM Router Service
+
+### 6.1 Генерация ответов
+
+**Приоритет:** Критический
+
+Требования:
+
+* Выбор модели LLM
+* Формирование prompt
+* Генерация ответа
+* Возврат источников (chunks)
+
+---
+
+## 3.7 Frontend
+
+### 7.1 Пользовательский интерфейс
+
+Требования:
+
+* Авторизация
+* Загрузка документов
+* Дашборд
+* Чат-интерфейс
+
+---
+
+# 4. НЕФУНКЦИОНАЛЬНЫЕ ТРЕБОВАНИЯ
+
+## 4.1 Производительность
+
+* Время ответа запроса: ≤ 1 сек
+* Latency RAG pipeline: ≤ 1.5 сек
+* Поддержка batch embedding
+
+---
+
+## 4.2 Надежность
+
+* Репликация сервисов
+* Автоматический failover
+* Асинхронные очереди
+
+---
+
+## 4.3 Безопасность
+
+* JWT аутентификация
+* Изоляция данных по organization_id
+* Шифрование данных
+* Безопасное хранение файлов
+
+---
+
+## 4.4 Масштабируемость
+
+* Горизонтальное масштабирование сервисов
+* Масштабирование векторной БД
+* Поддержка multiple LLM providers
+
+---
+
+## 4.5 Сопровождаемость
+
+* Логирование
+* Мониторинг
+* CI/CD
+
+---
+
+# 5. ТЕХНИЧЕСКИЕ ОГРАНИЧЕНИЯ
+
+## 5.1 Ограничения
+
+* Использование S3 для хранения
+* Использование Qdrant для embeddings
+* Все сервисы tenant-aware
+
+## 5.2 Предположения
+
+* Наличие облачной инфраструктуры
+* Доступ к LLM API
+* Стабильная сеть
+
+---
+
+# 6. СИСТЕМНЫЕ ТРЕБОВАНИЯ
+
+## 6.1 Серверная инфраструктура
+
+* Kubernetes кластер
+* S3-хранилище
+* Векторная БД (Qdrant)
+* PostgreSQL
+
+---
+
+## 6.2 Программное обеспечение
+
+* Go / Python
+* gRPC
+* PostgreSQL
+* Qdrant
+* React / Next.js
+
+---
+
+# 7. АРХИТЕКТУРА СИСТЕМЫ
+
+## 7.1 Микросервисы
+
+* Auth Service
+* API Gateway
+* Ingestion Service
+* Embedding Service
+* Retrieval Service
+* LLM Router
+* Frontend
+
+---
+
+## 7.2 Коммуникация
+
+* REST API
+* gRPC
+* Event-driven pipeline
+
+---
+
+## 7.3 Потоки данных
+
+### Поток обработки документа
+
+S3 → Ingestion → Embeddings → Qdrant
+
+### Поток запроса
+
+User → API → Retrieval → LLM → Ответ
+
+---
+
+# 8. МОДЕЛИ МАШИННОГО ОБУЧЕНИЯ
+
+## 8.1 Embeddings
+
+* Генерация векторных представлений текста
+
+## 8.2 LLM
+
+* Генерация ответов
+* Поддержка нескольких моделей
+
+---
+
+# 9. ИНТЕРФЕЙСЫ
+
+## 9.1 REST API
+
+* POST /documents
+* POST /query
+* GET /models
+
+---
+
+## 9.2 Frontend
+
+* Dashboard
+* Chat UI
+
+---
+
+# 10. ТЕСТИРОВАНИЕ
+
+## 10.1 Виды тестирования
+
+* Unit
+* Integration
+* Load testing
+* Security testing
+
+---
+
+## 10.2 Критерии приемки
+
+* Работает RAG pipeline
+* Обеспечена изоляция данных
+* API соответствует спецификации
+
+---
+
+# 11. ЭТАПЫ РАЗРАБОТКИ
+
+1. Проектирование
+2. Разработка сервисов
+3. Интеграция
+4. Тестирование
+5. Деплой
+
+---
+
+# 12. РИСКИ
+
+* Нарушение изоляции данных
+* Высокая latency LLM
+* Проблемы масштабирования
+
+---
+
+# 13. ЭКСПЛУАТАЦИЯ
+
+* Мониторинг
+* Обновления
+* Поддержка пользователей
+
+---
+
+# 14. СТОИМОСТЬ
+
+(Требует отдельной оценки)
+
+---
+
+# 15. ГЛОССАРИЙ
+
+* Embedding — векторное представление текста
+* Chunk — часть документа
+* Retrieval — поиск релевантных данных
+* Attribution — указание источников
+
+---
+
+# 16. ЗАКЛЮЧЕНИЕ
+
+Система RAG-as-a-Service обеспечивает масштабируемую платформу для интеллектуальной работы с документами, включая поиск и генерацию ответов, с полной изоляцией данных между организациями .
+
+---
+
+
+# Диаграмма контекста
+```mermaid
+graph TB
+
+    User[👤 User]
+    Org[🏢 Organization]
+
+    System[RAG-as-a-Service Platform]
+
+    S3[(S3 Storage)]
+    LLM[LLM Providers\n(OpenAI / Claude)]
+
+    User -->|Login / Upload / Query| System
+    Org --> User
+
+    System -->|Store & Retrieve Files| S3
+    System -->|LLM API Calls| LLM
+
+    %% Styles
 ```
 
 ---
 
-### 5. Retrieval Service (gRPC)
+# Диаграмма контейнеров
+```mermaid
+graph TB
 
-**Семантический поиск**
+    %% Users
+    User[👤 User]
 
-**Ответственность:**
+    %% Frontend
+    Frontend[Frontend\n(React / Next.js)]
 
-* Принимает запрос пользователя
-* Генерирует embedding запроса
-* Выполняет поиск в Qdrant
+    %% Entry point
+    Gateway[API Gateway\n(Go)]
 
-**Критически важно:**
+    %% Services
+    Auth[Auth Service\n(Go)]
+    Ingestion[Ingestion Service\n(Async)]
+    Embedding[Embedding Service\n(gRPC)]
+    Retrieval[Retrieval Service\n(gRPC)]
+    LLMRouter[LLM Router\n(gRPC)]
 
-* Каждый запрос ОБЯЗАТЕЛЬНО фильтруется:
+    %% Databases
+    Postgres[(PostgreSQL\nrag_auth / rag_app)]
+    Qdrant[(Qdrant Vector DB)]
+    S3[(S3 Storage)]
 
-  ```
-  organization_id = <from JWT>
-  ```
+    %% External
+    LLM[LLM Providers]
 
-**Результат:**
+    %% User flow
+    User --> Frontend
+    Frontend --> Gateway
 
-* Топ-N релевантных чанков
+    %% Auth flow
+    Gateway -->|/auth/*| Auth
+    Auth --> Postgres
 
----
+    %% Upload flow
+    Gateway -->|Pre-signed URL| S3
+    Frontend -->|Upload file| S3
 
-### 6. LLM Router (gRPC)
+    %% Ingestion flow
+    S3 -->|Event / Polling| Ingestion
+    Ingestion --> Embedding
+    Embedding --> Ingestion
+    Ingestion --> Qdrant
+    Ingestion --> Postgres
 
-**Оркестратор LLM-запросов**
+    %% Query flow
+    Gateway --> Retrieval
+    Retrieval --> Embedding
+    Embedding --> Retrieval
+    Retrieval -->|filter: organization_id| Qdrant
 
-**Ответственность:**
+    Retrieval --> LLMRouter
+    LLMRouter --> LLM
 
-* Принимает:
-
-  * user query
-  * контекст (chunks)
-* Формирует prompt
-* Отправляет в LLM провайдера (OpenAI / Claude / др.)
-* Возвращает:
-
-  * ответ
-  * источники (chunks)
-
-**Дополнительно:**
-
-* Возможность переключения провайдеров
-* Централизованная логика prompt engineering
-
----
-
-### 7. Frontend (React / Next.js)
-
-**Пользовательский интерфейс**
-
-**Функциональность:**
-
-* Аутентификация
-* Управление документами
-* Загрузка файлов (через S3)
-* Просмотр статусов индексации
-* Чат-интерфейс для RAG
-
----
-
-## 🗄️ Data Layer
-
-### PostgreSQL
-
-Используются две схемы:
-
-#### `rag_auth`
-
-* users
-* organizations
-* memberships
-
-#### `rag_app`
-
----
-
-## 🧱 Database Schema (rag_app)
-
-Основные таблицы:
-
-### documents
-
-Хранит информацию о загруженных файлах.
-
-| поле            | описание                                 |
-|-----------------|------------------------------------------|
-| id              | UUID                                     |
-| organization_id | из JWT                                   |
-| filename        | имя файла                                |
-| storage_path    | путь в S3                                |
-| status          | uploaded / processing / indexed / failed |
-| size_bytes      | размер                                   |
-| created_at      | дата создания                            |
-
----
-
-### ingestion_jobs
-
-Отвечает за асинхронный pipeline обработки.
-
-| поле        | описание                             |
-|-------------|--------------------------------------|
-| id          | UUID                                 |
-| document_id | ссылка на документ                   |
-| status      | pending / processing / done / failed |
-| error       | текст ошибки                         |
-| started_at  | время старта                         |
-| finished_at | время завершения                     |
-
----
-
-### document_chunks
-
-Хранит текстовые чанки (source of truth).
-
-| поле        | описание           |
-|-------------|--------------------|
-| id          | UUID               |
-| document_id | ссылка на документ |
-| chunk_index | индекс             |
-| content     | текст              |
-| metadata    | JSONB              |
-
----
-
-### rag_queries
-
-История запросов пользователей.
-
-| поле            | описание      |
-|-----------------|---------------|
-| id              | UUID          |
-| organization_id | tenant        |
-| user_id         | пользователь  |
-| query           | текст запроса |
-
----
-
-### rag_answers
-
-Ответы LLM.
-
-| поле       | описание         |
-|------------|------------------|
-| id         | UUID             |
-| query_id   | ссылка на запрос |
-| answer     | текст ответа     |
-| model      | модель           |
-| latency_ms | время ответа     |
-
----
-
-### rag_answer_sources
-
-Связь ответов с чанками (attribution).
-
-| поле      | описание      |
-|-----------|---------------|
-| answer_id | ответ         |
-| chunk_id  | источник      |
-| score     | релевантность |
-
----
-
-### Qdrant (Vector DB)
-
-**Хранит:**
-
-* embeddings
-* текст чанков
-* metadata
-
-**Обязательное поле:**
-
+    %% Styles
+    style Gateway fill:#ff7f0e,color:#fff
+    style Auth fill:#2ca02c,color:#fff
+    style Ingestion fill:#2ca02c,color:#fff
+    style Retrieval fill:#2ca02c,color:#fff
+    style LLMRouter fill:#2ca02c,color:#fff
+    style Embedding fill:#9467bd,color:#fff
 ```
-organization_id
-```
-
----
-
-## 🔄 Основные флоу
-
-### 📥 Загрузка документа
-
-1. Frontend → API Gateway
-2. Gateway → генерирует S3 pre-signed URL
-3. Frontend → загружает файл напрямую в S3
-4. Создается ingestion job
-5. Worker обрабатывает файл
-6. Данные сохраняются в Qdrant
-
----
-
-### 💬 RAG-запрос
-
-1. Frontend → API Gateway (с JWT)
-2. Gateway → Retrieval Service
-3. Retrieval → Qdrant (с фильтром organization_id)
-4. Retrieval → LLM Router
-5. LLM Router → LLM provider
-6. Ответ возвращается пользователю с источниками
-
----
-
-## ⚙️ Local Development
-
-### Требования
-
-- Docker
-- Docker Compose
-
----
-
-### 🚀 Запуск проекта
-
-```bash
-docker compose up --build
-```
----
