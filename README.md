@@ -395,86 +395,44 @@ User → API → Retrieval → LLM → Ответ
 ```mermaid
 graph TB
 
-    User[👤 User]
-    Org[🏢 Organization]
+    User[User]
 
-    System[RAG-as-a-Service Platform]
+    Frontend[Frontend (React / Next.js)]
 
-    S3[(S3 Storage)]
-    LLM[LLM Providers\n(OpenAI / Claude)]
+    Gateway[API Gateway (Go)]
 
-    User -->|Login / Upload / Query| System
-    Org --> User
+    Auth[Auth Service (Go)]
+    Ingestion[Ingestion Service (Async)]
+    Embedding[Embedding Service (gRPC)]
+    Retrieval[Retrieval Service (gRPC)]
+    LLMRouter[LLM Router (gRPC)]
 
-    System -->|Store & Retrieve Files| S3
-    System -->|LLM API Calls| LLM
-
-    %% Styles
-```
-
----
-
-# Диаграмма контейнеров
-```mermaid
-graph TB
-
-    %% Users
-    User[👤 User]
-
-    %% Frontend
-    Frontend[Frontend\n(React / Next.js)]
-
-    %% Entry point
-    Gateway[API Gateway\n(Go)]
-
-    %% Services
-    Auth[Auth Service\n(Go)]
-    Ingestion[Ingestion Service\n(Async)]
-    Embedding[Embedding Service\n(gRPC)]
-    Retrieval[Retrieval Service\n(gRPC)]
-    LLMRouter[LLM Router\n(gRPC)]
-
-    %% Databases
-    Postgres[(PostgreSQL\nrag_auth / rag_app)]
+    Postgres[(PostgreSQL)]
     Qdrant[(Qdrant Vector DB)]
     S3[(S3 Storage)]
 
-    %% External
     LLM[LLM Providers]
 
-    %% User flow
     User --> Frontend
     Frontend --> Gateway
 
-    %% Auth flow
-    Gateway -->|/auth/*| Auth
+    Gateway -->|/auth| Auth
     Auth --> Postgres
 
-    %% Upload flow
-    Gateway -->|Pre-signed URL| S3
-    Frontend -->|Upload file| S3
+    Gateway -->|get upload URL| S3
+    Frontend -->|upload file| S3
 
-    %% Ingestion flow
-    S3 -->|Event / Polling| Ingestion
+    S3 -->|event| Ingestion
     Ingestion --> Embedding
     Embedding --> Ingestion
     Ingestion --> Qdrant
     Ingestion --> Postgres
 
-    %% Query flow
     Gateway --> Retrieval
     Retrieval --> Embedding
     Embedding --> Retrieval
-    Retrieval -->|filter: organization_id| Qdrant
+    Retrieval -->|filter organization_id| Qdrant
 
     Retrieval --> LLMRouter
     LLMRouter --> LLM
-
-    %% Styles
-    style Gateway fill:#ff7f0e,color:#fff
-    style Auth fill:#2ca02c,color:#fff
-    style Ingestion fill:#2ca02c,color:#fff
-    style Retrieval fill:#2ca02c,color:#fff
-    style LLMRouter fill:#2ca02c,color:#fff
-    style Embedding fill:#9467bd,color:#fff
 ```
