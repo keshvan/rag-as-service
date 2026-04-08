@@ -392,47 +392,8 @@ User → API → Retrieval → LLM → Ответ
 
 
 # Диаграмма контекста
-```mermaid
-graph TB
+<img width="465" height="424" alt="mermaid-diagram" src="https://github.com/user-attachments/assets/bcf9d79f-f5d8-4027-91a1-68b5110e0b14" />
 
-    User[User]
 
-    Frontend[Frontend (React / Next.js)]
-
-    Gateway[API Gateway (Go)]
-
-    Auth[Auth Service (Go)]
-    Ingestion[Ingestion Service (Async)]
-    Embedding[Embedding Service (gRPC)]
-    Retrieval[Retrieval Service (gRPC)]
-    LLMRouter[LLM Router (gRPC)]
-
-    Postgres[(PostgreSQL)]
-    Qdrant[(Qdrant Vector DB)]
-    S3[(S3 Storage)]
-
-    LLM[LLM Providers]
-
-    User --> Frontend
-    Frontend --> Gateway
-
-    Gateway -->|/auth| Auth
-    Auth --> Postgres
-
-    Gateway -->|get upload URL| S3
-    Frontend -->|upload file| S3
-
-    S3 -->|event| Ingestion
-    Ingestion --> Embedding
-    Embedding --> Ingestion
-    Ingestion --> Qdrant
-    Ingestion --> Postgres
-
-    Gateway --> Retrieval
-    Retrieval --> Embedding
-    Embedding --> Retrieval
-    Retrieval -->|filter organization_id| Qdrant
-
-    Retrieval --> LLMRouter
-    LLMRouter --> LLM
-```
+# Диаграмма контейнеров
+<img width="821" height="958" alt="mermaid-diagram (1)" src="https://github.com/user-attachments/assets/81b92b38-7334-4c5d-a7d9-aeea8553e3b7" />
