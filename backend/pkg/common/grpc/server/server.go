@@ -26,7 +26,7 @@ func NewGRPCServer(cfg config.GRPCServerConfig) *GRPCServer {
 		grpc.UnaryInterceptor(interceptors.ServerTenantInterceptor),
 	)
 	reflection.Register(s)
-	return &GRPCServer{server: s, cfg: cfg}
+	return &GRPCServer{server: s, cfg: cfg, log: slog.Default()}
 }
 
 func (s *GRPCServer) Run(registerFunc func(*grpc.Server)) error {

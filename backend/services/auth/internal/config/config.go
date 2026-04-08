@@ -5,18 +5,21 @@ import (
 	"time"
 
 	"github.com/ilyakaznacheev/cleanenv"
+	commonCfg "github.com/keshvan/rag-as-service/backend/pkg/common/config"
 )
 
 type Config struct {
+	commonCfg.BaseConfig
 	AccessTokenTTL  time.Duration `yaml:"access_ttl" env:"ACCESS_TTL"`
 	RefreshTokenTTL time.Duration `yaml:"refresh_ttl" env:"REFRESH_TTL"`
-	HTTP            HTTPConfig    `yaml:"http"`
-	Secret          string        `yaml:"secret" env:"AUTH_SECRET"`
-	DB              DBConfig      `yaml:"postgres"`
-	SMTP            SMTPConfig    `yaml:"smtp"`
-	RedisAddress    string        `yaml:"redis_addr" env:"REDIS_ADDR"`
+	//HTTP            HTTPConfig    `yaml:"http"`
+	Secret string `yaml:"secret" env:"AUTH_SECRET"`
+	//DB              DBConfig      `yaml:"postgres"`
+	SMTP         SMTPConfig `yaml:"smtp"`
+	RedisAddress string     `yaml:"redis_addr" env:"REDIS_ADDR"`
 }
 
+/*
 type HTTPConfig struct {
 	Port string `yaml:"port" env:"HTTP_PORT"`
 }
@@ -28,7 +31,7 @@ type DBConfig struct {
 	Password string `yaml:"password" env:"POSTGRES_PASSWORD"`
 	Dbname   string `yaml:"dbname" env:"POSTGRES_DB"`
 	Sslmode  string `yaml:"sslmode" env:"POSTGRES_SSLMODE"`
-}
+}*/
 
 type SMTPConfig struct {
 	Host     string `yaml:"host" env:"SMTP_HOST"`

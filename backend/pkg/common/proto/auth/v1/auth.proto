@@ -1,0 +1,87 @@
+syntax = "proto3";
+
+package auth.v1;
+
+option go_package = "github.com/keshvan/rag-as-service/backend/pkg/common/gen/auth/v1;authv1";
+
+service AuthService {
+  rpc Register(RegisterRequest) returns (RegisterResponse);
+  rpc VerifyEmail(VerifyEmailRequest) returns (VerifyEmailResponse);
+  rpc Login(LoginRequest) returns (LoginResponse);
+  rpc GetCurrentUserGUID(GetCurrentUserGUIDRequest) returns (GetCurrentUserGUIDResponse);
+  rpc GetTokenPairByUserGUID(GetTokenPairByUserGUIDRequest) returns (GetTokenPairByUserGUIDResponse);
+  rpc Logout(LogoutRequest) returns (LogoutResponse);
+  rpc RefreshTokens(RefreshTokensRequest) returns (RefreshTokensResponse);
+}
+
+message RegisterRequest {
+  string email = 1;
+  string password = 2;
+  string organization_name = 3;
+  string organization_url = 4;
+}
+
+message RegisterResponse {
+  string message = 1;
+}
+
+message VerifyEmailRequest {
+  string email = 1;
+  string code = 2;
+}
+
+message VerifyEmailResponse {
+  string guid = 1;
+}
+
+message LoginRequest {
+  string email = 1;
+  string password = 2;
+  string user_agent = 3;
+  string ip = 4;
+}
+
+message LoginResponse {
+  string guid = 1;
+  string access_token = 2;
+  string refresh_token = 3;
+}
+
+message GetCurrentUserGUIDRequest {
+  string user_guid = 1;
+}
+
+message GetCurrentUserGUIDResponse {
+  string guid = 1;
+}
+
+message GetTokenPairByUserGUIDRequest {
+  string current_user_guid = 1;
+  string target_guid = 2;
+  string user_agent = 3;
+  string ip = 4;
+}
+
+message GetTokenPairByUserGUIDResponse {
+  string access_token = 1;
+  string refresh_token = 2;
+}
+
+message LogoutRequest {
+  string user_guid = 1;
+}
+
+message LogoutResponse {}
+
+message RefreshTokensRequest {
+  string user_guid = 1;
+  string session_id = 2;
+  string refresh_token = 3;
+  string user_agent = 4;
+  string ip = 5;
+}
+
+message RefreshTokensResponse {
+  string access_token = 1;
+  string refresh_token = 2;
+}

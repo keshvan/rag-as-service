@@ -1,20 +1,28 @@
-FROM golang:1.23-alpine AS builder
-WORKDIR /src
+FROM golang:1.25-alpine AS builder
 
-COPY go.mod go.sum ./
+WORKDIR /workspace
+
+RUN apk add --no-cache ca-certificates tzdata
+
+COPY go.work go.work.sum ./
+COPY pkg/common ./pkg/common
+COPY services/auth ./services/auth
+COPY services/gateway ./services/gateway
+
+WORKDIR /workspace/services/auth
 RUN go mod download
 
-COPY . .
-RUN CGO_ENABLED=0 GOOS=linux go build -o /out/auth-service ./cmd
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
+    go build -o /bin/auth ./cmd
 
 FROM alpine:3.20
+
 WORKDIR /app
 
-RUN apk add --no-cache ca-certificates
-ENV GIN_MODE=debug
-ENV LOG_LEVEL=debug
+RUN apk add --no-cache ca-certificates tzdata
 
-COPY --from=builder /out/auth-service /app/main
+COPY --from=builder /bin/auth /app/auth
 
-EXPOSE 8080
-CMD ["/app/main"]
+EXPOSE 50051
+
+CMD ["/app/auth"]

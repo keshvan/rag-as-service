@@ -1,11 +1,7 @@
 package handlers
 
 import (
-	"errors"
-	"net/http"
-
 	"github.com/keshvan/rag-as-service/backend/services/auth/internal/services"
-	"github.com/gin-gonic/gin"
 )
 
 type AuthHandler struct {
@@ -16,6 +12,7 @@ func NewAuthHandler(auth *services.Auth) *AuthHandler {
 	return &AuthHandler{auth: auth}
 }
 
+/*
 func (h *AuthHandler) SendEmailWithCode(ctx *gin.Context) {
 	var req struct {
 		Email            string `json:"email" binding:"required,email"`
@@ -149,3 +146,4 @@ func (h *AuthHandler) RefreshTokens(ctx *gin.Context) {
 
 	ctx.JSON(http.StatusOK, gin.H{"access_token": tokenPair.AccessToken, "refresh_token": tokenPair.RefreshToken})
 }
+*/

@@ -15,7 +15,7 @@ services:
       - backend-network
 
   db-auth:
-    image: postgres:15
+    image: postgres:17-alpine
     container_name: jwt-auth-db
     env_file:
       - .env
@@ -23,6 +23,8 @@ services:
       - postgres_data:/var/lib/postgresql/data
     networks:
       - backend-network
+    ports:
+      - "5432:5432"
 
   redis-auth:
     image: redis:7-alpine
