@@ -11,6 +11,8 @@ services:
     depends_on:
       auth:
         condition: service_started
+      document:
+        condition: service_started
     ports:
       - "8080:8080"
     networks:
@@ -30,6 +32,21 @@ services:
         condition: service_started
     ports:
       - "50051:50051"
+    networks:
+      - backend
+
+  document:
+    build:
+      context: .
+      dockerfile: services/document/Dockerfile
+    container_name: raas-document
+    env_file:
+      - services/document/.env
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "50052:50051"
     networks:
       - backend
 

@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 
-	authv1 "github.com/keshvan/rag-as-service/backend/pkg/common/gen"
+	authv1 "github.com/keshvan/rag-as-service/backend/pkg/common/gen/auth/v1"
 	"github.com/keshvan/rag-as-service/backend/services/auth/internal/authctx"
 	"github.com/keshvan/rag-as-service/backend/services/auth/internal/lib/jwt"
 	"github.com/keshvan/rag-as-service/backend/services/auth/internal/services"

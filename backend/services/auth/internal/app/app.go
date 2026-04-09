@@ -3,7 +3,7 @@ package app
 import (
 	"log/slog"
 
-	authv1 "github.com/keshvan/rag-as-service/backend/pkg/common/gen"
+	authv1 "github.com/keshvan/rag-as-service/backend/pkg/common/gen/auth/v1"
 	commonGRPCServer "github.com/keshvan/rag-as-service/backend/pkg/common/grpc/server"
 	"github.com/keshvan/rag-as-service/backend/services/auth/internal/cache"
 	"github.com/keshvan/rag-as-service/backend/services/auth/internal/config"

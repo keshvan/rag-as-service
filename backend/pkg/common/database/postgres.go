@@ -2,6 +2,7 @@ package database
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"time"
@@ -15,36 +16,53 @@ type DBOptions struct {
 	MaxConnections int32
 }
 
-func NewPostgresPool(ctx context.Context, dsn string, opts DBOptions, log *slog.Logger) (*pgxpool.Pool, error) {
-	config, err := pgxpool.ParseConfig(dsn)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse url: %w", err)
+func (o *DBOptions) setDefaults() {
+	if o.MaxRetries <= 0 {
+		o.MaxRetries = 10
 	}
+	if o.RetryInterval <= 0 {
+		o.RetryInterval = 2 * time.Second
+	}
+	if o.MaxConnections <= 0 {
+		o.MaxConnections = 10
+	}
+}
 
-	config.MaxConns = opts.MaxConnections
+func NewPostgresPool(ctx context.Context, dsn string, opts DBOptions, log *slog.Logger) (*pgxpool.Pool, error) {
+	if log == nil {
+		log = slog.Default()
+	}
+	opts.setDefaults()
 
-	var pool *pgxpool.Pool
+	cfg, err := pgxpool.ParseConfig(dsn)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse postgres dsn: %w", err)
+	}
+	cfg.MaxConns = opts.MaxConnections
+
+	var lastErr error
 	for i := 1; i <= opts.MaxRetries; i++ {
-		log.Info("connecting to postgres", "attempt", i)
+		log.Info("connecting to postgres", "attempt", i, "max_retries", opts.MaxRetries)
 
-		pool, err = pgxpool.NewWithConfig(ctx, config)
-		if err == nil {
-			if err = pool.Ping(ctx); err == nil {
+		pool, err := pgxpool.NewWithConfig(ctx, cfg)
+		if err != nil {
+			lastErr = err
+		} else {
+			pingCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
+			pingErr := pool.Ping(pingCtx)
+			cancel()
+
+			if pingErr == nil {
 				log.Info("postgres connected")
 				return pool, nil
 			}
-		}
 
-		if pool != nil {
+			lastErr = pingErr
 			pool.Close()
 		}
 
 		if i < opts.MaxRetries {
-			log.Warn("postgres not ready",
-				"err", err,
-				"retry_in", opts.RetryInterval,
-			)
-
+			log.Warn("postgres not ready", "err", lastErr, "retry_in", opts.RetryInterval)
 			select {
 			case <-time.After(opts.RetryInterval):
 			case <-ctx.Done():
@@ -53,5 +71,8 @@ func NewPostgresPool(ctx context.Context, dsn string, opts DBOptions, log *slog.
 		}
 	}
 
-	return nil, fmt.Errorf("could not connect to postgres after %d attempts: %w", opts.MaxRetries, err)
+	if lastErr == nil {
+		lastErr = errors.New("unknown postgres connection error")
+	}
+	return nil, fmt.Errorf("could not connect to postgres after %d attempts: %w", opts.MaxRetries, lastErr)
 }

@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	authv1 "github.com/keshvan/rag-as-service/backend/pkg/common/gen"
+	authv1 "github.com/keshvan/rag-as-service/backend/pkg/common/gen/auth/v1"
 	commonClient "github.com/keshvan/rag-as-service/backend/pkg/common/grpc/client"
 	"google.golang.org/grpc"
 )

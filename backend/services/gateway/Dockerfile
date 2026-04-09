@@ -8,6 +8,7 @@ COPY go.work go.work.sum ./
 COPY pkg/common ./pkg/common
 COPY services/auth ./services/auth
 COPY services/gateway ./services/gateway
+COPY services/document ./services/document
 
 WORKDIR /workspace/services/gateway
 RUN go mod download
