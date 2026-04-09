@@ -7,6 +7,7 @@ import (
 	commonLogger "github.com/keshvan/rag-as-service/backend/pkg/common/logger"
 	commonServer "github.com/keshvan/rag-as-service/backend/pkg/common/server"
 	"github.com/keshvan/rag-as-service/backend/services/gateway/internal/clients/auth"
+	"github.com/keshvan/rag-as-service/backend/services/gateway/internal/clients/document"
 	"github.com/keshvan/rag-as-service/backend/services/gateway/internal/config"
 	"github.com/keshvan/rag-as-service/backend/services/gateway/internal/handlers"
 	"github.com/keshvan/rag-as-service/backend/services/gateway/internal/router"
@@ -26,10 +27,20 @@ func New(cfg *config.GatewayConfig) (*App, error) {
 		return nil, fmt.Errorf("failed to init auth grpc client: %w", err)
 	}
 
+	documentClient, err := document.New(cfg.DocumentHost, cfg.DocumentPort)
+	if err != nil {
+		return nil, fmt.Errorf("failed to init document grpc client: %w", err)
+	}
+
 	authHandler := handlers.NewAuthHandler(authClient)
+	documentHandler := handlers.NewDocumentHandler(documentClient)
+	if err != nil {
+		return nil, fmt.Errorf("failed to init document handler: %w", err)
+	}
 
 	appHandlers := router.Handlers{
-		Auth: authHandler,
+		Auth:     authHandler,
+		Document: documentHandler,
 	}
 
 	srv := commonServer.NewHTTPServer(

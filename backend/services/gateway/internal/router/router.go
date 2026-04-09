@@ -7,8 +7,8 @@ import (
 )
 
 type Handlers struct {
-	Auth *handlers.AuthHandler
-	// Document
+	Auth     *handlers.AuthHandler
+	Document *handlers.DocumentHandler
 	// RAG
 	// ...
 }
@@ -28,6 +28,7 @@ func RegisterRoutes(r *chi.Mux, h Handlers, jwtSecret string) {
 			protected.Post("/tokens", h.Auth.GetTokenPairByUserGUID)
 			protected.Post("/logout", h.Auth.Logout)
 			protected.Post("/refresh", h.Auth.RefreshTokens)
+			protected.Post("/documents/presign-upload", h.Document.InitUpload)
 		})
 	})
 }

@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"strings"
 
-	authv1 "github.com/keshvan/rag-as-service/backend/pkg/common/gen"
+	authv1 "github.com/keshvan/rag-as-service/backend/pkg/common/gen/auth/v1"
 	authClient "github.com/keshvan/rag-as-service/backend/services/gateway/internal/clients/auth"
 	"github.com/keshvan/rag-as-service/backend/services/gateway/internal/middleware"
 	"google.golang.org/grpc/codes"
