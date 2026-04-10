@@ -410,7 +410,6 @@ Document Service является control-plane сервисом для упра
 
 ## 6.1 Серверная инфраструктура
 
-* Kubernetes кластер
 * S3-хранилище
 * Векторная БД (Qdrant)
 * PostgreSQL
@@ -435,6 +434,7 @@ Document Service является control-plane сервисом для упра
 * API Gateway
 * Ingestion Service
 * Embedding Service
+* Document Service
 * Retrieval Service
 * LLM Router
 * Frontend
@@ -446,6 +446,7 @@ Document Service является control-plane сервисом для упра
 * REST API
 * gRPC
 * Event-driven pipeline
+* Kafka
 
 ---
 
@@ -498,7 +499,6 @@ User → API → Retrieval → LLM → Ответ
 * Unit
 * Integration
 * Load testing
-* Security testing
 
 ---
 
