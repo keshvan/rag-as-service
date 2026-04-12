@@ -10,6 +10,7 @@ import (
 	documentv1 "github.com/keshvan/rag-as-service/backend/pkg/common/gen/document/v1"
 	commonGRPCServer "github.com/keshvan/rag-as-service/backend/pkg/common/grpc/server"
 	"github.com/keshvan/rag-as-service/backend/services/document/internal/config"
+	"github.com/keshvan/rag-as-service/backend/services/document/internal/events"
 	grpcserver "github.com/keshvan/rag-as-service/backend/services/document/internal/grpc"
 	"github.com/keshvan/rag-as-service/backend/services/document/internal/repo"
 	"github.com/keshvan/rag-as-service/backend/services/document/internal/services"
@@ -17,8 +18,9 @@ import (
 )
 
 type App struct {
-	grpcServer *commonGRPCServer.GRPCServer
-	register   func(*grpc.Server)
+	grpcServer    *commonGRPCServer.GRPCServer
+	register      func(*grpc.Server)
+	eventProducer *events.Producer
 }
 
 func NewApp(cfg *config.DocumentConfig) (*App, error) {
@@ -39,7 +41,15 @@ func NewApp(cfg *config.DocumentConfig) (*App, error) {
 		return nil, fmt.Errorf("init s3 presign service: %w", err)
 	}
 
-	documentService := services.NewDocumentService(repository, s3Service, cfg)
+	// Initialize Kafka event producer
+	eventProducer, err := events.NewProducer(cfg.GetKafkaBrokers(), cfg.KafkaTopic, log)
+	if err != nil {
+		log.Error("Failed to initialize Kafka producer, continuing without event publishing", "error", err)
+		// Continue without producer - events won't be published but the service will still work
+		eventProducer = nil
+	}
+
+	documentService := services.NewDocumentService(repository, s3Service, cfg, eventProducer, log)
 	documentServer := grpcserver.NewServer(documentService)
 
 	grpcSrv := commonGRPCServer.NewGRPCServer(cfg.GRPC)
@@ -48,8 +58,9 @@ func NewApp(cfg *config.DocumentConfig) (*App, error) {
 	}
 
 	return &App{
-		grpcServer: grpcSrv,
-		register:   register,
+		grpcServer:    grpcSrv,
+		register:      register,
+		eventProducer: eventProducer,
 	}, nil
 }
 

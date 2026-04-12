@@ -18,7 +18,7 @@ func NewDocumentRepository(db *pgxpool.Pool) *DocumentRepository {
 
 func (r *DocumentRepository) CreatePending(ctx context.Context, d entity.Document) error {
 	_, err := r.db.Exec(ctx, `
-		INSERT INTO documents (id, organization_id, file_name, content_type, status, object_key, size_bytes)
+		INSERT INTO rag_app.documents (id, organization_id, file_name, content_type, status, object_key, size_bytes)
 		VALUES ($1, $2, $3, $4, $5, $6, $7)
 	`, d.ID, d.OrgID, d.FileName, d.ContentType, d.Status, d.ObjectKey, d.SizeBytes)
 
@@ -62,4 +62,22 @@ func (r *DocumentRepository) ListByOrg(ctx context.Context, orgID string, limit,
 		out = append(out, d)
 	}
 	return out, rows.Err()
+}
+
+func (r *DocumentRepository) GetDocumentByID(ctx context.Context, orgID, documentID string) (*entity.Document, error) {
+	var d entity.Document
+	err := r.db.QueryRow(ctx, `
+		SELECT id, organization_id, file_name, content_type, status, object_key, size_bytes, created_at
+		FROM rag_app.documents
+		WHERE id = $1 AND organization_id = $2
+	`, documentID, orgID).Scan(&d.ID, &d.OrgID, &d.FileName, &d.ContentType, &d.Status, &d.ObjectKey, &d.SizeBytes, &d.CreatedAt)
+
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return nil, pgx.ErrNoRows
+		}
+		return nil, err
+	}
+
+	return &d, nil
 }

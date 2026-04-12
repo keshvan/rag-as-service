@@ -3,6 +3,7 @@ go 1.25.4
 use (
 	./pkg/common
 	./services/auth
-	./services/gateway
 	./services/document
+	./services/gateway
+	./services/ingestion-worker
 )
