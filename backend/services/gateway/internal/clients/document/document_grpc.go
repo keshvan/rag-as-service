@@ -30,6 +30,11 @@ func (c *Client) InitUpload(ctx context.Context, req *documentv1.InitUploadReque
 	return c.api.InitUpload(ctx, req)
 }
 
+func (c *Client) CompleteUpload(ctx context.Context, req *documentv1.CompleteUploadRequest) (*documentv1.CompleteUploadResponse, error) {
+	return c.api.CompleteUpload(ctx, req)
+}
+
 func (c *Client) Close() error {
 	return c.conn.Close()
 }
+
