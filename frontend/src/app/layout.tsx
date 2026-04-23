@@ -1,6 +1,8 @@
+import type { ReactNode } from "react";
 import type { Metadata } from "next";
 import { Rubik, IBM_Plex_Mono } from "next/font/google";
 import { AppShell } from "@/components/layout/app-shell";
+import { AuthProvider } from "@/features/auth/providers/auth-provider";
 import { appConfig } from "@/lib/site";
 import "./globals.css";
 
@@ -23,12 +25,14 @@ export const metadata: Metadata = {
 export default function RootLayout({
   children,
 }: Readonly<{
-  children: React.ReactNode;
+  children: ReactNode;
 }>) {
   return (
     <html lang="ru">
       <body className={`${rubik.variable} ${ibmPlexMono.variable} font-[var(--font-rubik)] antialiased`}>
-        <AppShell>{children}</AppShell>
+        <AuthProvider>
+          <AppShell>{children}</AppShell>
+        </AuthProvider>
       </body>
     </html>
   );
