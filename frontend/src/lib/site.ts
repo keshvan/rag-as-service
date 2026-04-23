@@ -20,6 +20,10 @@ const pageMetaMap: Record<string, { title: string; subtitle: string }> = {
     title: "Настройки",
     subtitle: "Управление параметрами и доступом организации.",
   },
+  "/profile": {
+    title: "Профиль",
+    subtitle: "Данные текущей сессии и быстрые действия для аккаунта.",
+  },
 };
 
 export function resolvePageMeta(pathname: string) {
