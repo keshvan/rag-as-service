@@ -18,6 +18,10 @@ export type RegisterResponse = {
   message: string;
 };
 
+export type VerificationResponse = {
+  guid: string;
+};
+
 export type UserResponse = {
   guid: string;
 };

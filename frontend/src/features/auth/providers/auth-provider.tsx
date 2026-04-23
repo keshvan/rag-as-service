@@ -19,13 +19,14 @@ type AuthContextValue = {
   isLoading: boolean;
   login: (payload: LoginPayload) => Promise<void>;
   register: (payload: RegisterPayload) => Promise<void>;
+  verifyEmail: (email: string, code: string) => Promise<void>;
   logout: () => Promise<void>;
   refreshSession: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-const AUTH_PAGES = new Set(["/login", "/register"]);
+const AUTH_PAGES = new Set(["/login", "/register", "/verification"]);
 
 export function AuthProvider({ children }: PropsWithChildren) {
   const pathname = usePathname();
@@ -86,6 +87,10 @@ export function AuthProvider({ children }: PropsWithChildren) {
     await authApi.register(payload);
   };
 
+  const verifyEmail = async (email: string, code: string) => {
+    await authApi.verification(email, code);
+  };
+
   const logout = async () => {
     try {
       await authApi.logout();
@@ -106,6 +111,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
         isLoading,
         login,
         register,
+        verifyEmail,
         logout,
         refreshSession,
       }}

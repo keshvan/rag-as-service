@@ -8,7 +8,7 @@ import { Sidebar } from "@/components/layout/sidebar";
 export function AppShell({ children }: PropsWithChildren) {
   const pathname = usePathname();
   const [isSidebarOpen, setSidebarOpen] = useState(false);
-  const isAuthPage = pathname === "/login" || pathname === "/register";
+  const isAuthPage = pathname === "/login" || pathname === "/register" || pathname === "/verification";
 
   useEffect(() => {
     const onResize = () => {

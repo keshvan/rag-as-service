@@ -28,8 +28,8 @@ export function RegisterForm() {
         organization_name: organizationName,
         organization_url: organizationUrl,
       });
-      setMessage("Регистрация отправлена. После подтверждения почты можно войти.");
-      router.push("/login");
+      setMessage("Регистрация отправлена. Введите код подтверждения, который пришёл на почту.");
+      router.push(`/verification?email=${encodeURIComponent(email)}`);
     } catch (submissionError) {
       const nextError = submissionError instanceof Error ? submissionError.message : "Не удалось зарегистрироваться";
       setError(nextError);

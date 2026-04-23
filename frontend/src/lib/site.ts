@@ -24,6 +24,10 @@ const pageMetaMap: Record<string, { title: string; subtitle: string }> = {
     title: "Профиль",
     subtitle: "Данные текущей сессии и быстрые действия для аккаунта.",
   },
+  "/verification": {
+    title: "Подтверждение email",
+    subtitle: "Введите код из письма, чтобы завершить регистрацию и войти в систему.",
+  },
 };
 
 export function resolvePageMeta(pathname: string) {

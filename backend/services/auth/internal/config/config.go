@@ -43,8 +43,12 @@ type SMTPConfig struct {
 
 func Load() *Config {
 	var config Config
-	if err := cleanenv.ReadEnv(&config); err != nil {
-		log.Fatalf("cannot read env config: %s", err)
+
+	if err := cleanenv.ReadConfig(".env", &config); err != nil {
+		if err = cleanenv.ReadEnv(&config); err != nil {
+			log.Fatalf("cannot read env config: %s", err)
+		}
 	}
+
 	return &config
 }

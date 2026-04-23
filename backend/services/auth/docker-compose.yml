@@ -4,8 +4,6 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: authentication-backend
-    env_file:
-      - .env
     ports:
       - "8080:8080"
     depends_on:
@@ -17,8 +15,6 @@ services:
   db-auth:
     image: postgres:17-alpine
     container_name: jwt-auth-db
-    env_file:
-      - .env
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
