@@ -7,11 +7,19 @@ import (
 )
 
 type Config struct {
-	KafkaBrokers       []string
-	KafkaTopic         string
-	KafkaGroupID       string
-	DatabaseURL        string
-	ProcessingSleepMS  int
+	KafkaBrokers      []string
+	KafkaTopic        string
+	KafkaGroupID      string
+	DatabaseURL       string
+	ProcessingSleepMS int
+
+	S3Endpoint        string
+	S3Region          string
+	S3Bucket          string
+	S3AccessKeyID     string
+	S3SecretAccessKey string
+
+	DownloadDir string
 }
 
 // LoadConfig loads configuration from environment variables
@@ -22,11 +30,19 @@ func LoadConfig() *Config {
 	}
 
 	return &Config{
-		KafkaBrokers: strings.Split(brokerStr, ","),
-		KafkaTopic: getEnvOrDefault("KAFKA_TOPIC", "document.uploaded"),
-		KafkaGroupID: getEnvOrDefault("KAFKA_GROUP_ID", "ingestion-worker"),
-		DatabaseURL: os.Getenv("DATABASE_URL"),
+		KafkaBrokers:      strings.Split(brokerStr, ","),
+		KafkaTopic:        getEnvOrDefault("KAFKA_TOPIC", "document.uploaded"),
+		KafkaGroupID:      getEnvOrDefault("KAFKA_GROUP_ID", "ingestion-worker"),
+		DatabaseURL:       os.Getenv("DATABASE_URL"),
 		ProcessingSleepMS: getEnvAsInt("PROCESSING_SLEEP_MS", 200),
+
+		S3Endpoint:        getEnvOrDefault("S3_ENDPOINT", "https://storage.yandexcloud.net"),
+		S3Region:          getEnvOrDefault("S3_REGION", "ru-central1"),
+		S3Bucket:          os.Getenv("S3_BUCKET"),
+		S3AccessKeyID:     os.Getenv("S3_ACCESS_KEY_ID"),
+		S3SecretAccessKey: os.Getenv("S3_SECRET_ACCESS_KEY"),
+
+		DownloadDir: getEnvOrDefault("DOWNLOAD_DIR", "/tmp/raas-ingestion"),
 	}
 }
 

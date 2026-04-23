@@ -10,17 +10,24 @@ import (
 )
 
 // Processor handles document ingestion processing
+
+type S3Downloader interface {
+	DownloadToFile(ctx context.Context, objectKey, orgID, docID string) (string, error)
+}
+
 type Processor struct {
 	docRepo           *repo.DocumentsRepository
-	processingSleepmMS int
+	downloader        S3Downloader
+	processingSleepMS int
 	logger            *slog.Logger
 }
 
 // NewProcessor creates a new processor
-func NewProcessor(docRepo *repo.DocumentsRepository, processingSleepmMS int, logger *slog.Logger) *Processor {
+func NewProcessor(docRepo *repo.DocumentsRepository, downloader S3Downloader, processingSleepMS int, logger *slog.Logger) *Processor {
 	return &Processor{
 		docRepo:           docRepo,
-		processingSleepmMS: processingSleepmMS,
+		downloader:        downloader,
+		processingSleepMS: processingSleepMS,
 		logger:            logger,
 	}
 }
@@ -60,12 +67,33 @@ func (p *Processor) Process(ctx context.Context, event *kafka.DocumentUploadedEv
 	p.logger.Info("Document marked as processing",
 		"doc_id", event.DocumentID,
 		"org_id", event.OrganizationID,
+		"object_key", event.ObjectKey,
 	)
 
-	// Simulate processing delay (skeleton - replace with actual ingestion logic)
-	if p.processingSleepmMS > 0 {
+	localPath, err := p.downloader.DownloadToFile(ctx, event.ObjectKey, event.OrganizationID, event.DocumentID)
+	if err != nil {
+		p.logger.Error("Failed to download document from S3",
+			"doc_id", event.DocumentID,
+			"org_id", event.OrganizationID,
+			"object_key", event.ObjectKey,
+			"error", err,
+		)
+
+		_ = p.docRepo.MarkFailed(ctx, event.OrganizationID, event.DocumentID, err.Error())
+		return err
+	}
+
+	p.logger.Info("Document downloaded successfully",
+		"doc_id", event.DocumentID,
+		"org_id", event.OrganizationID,
+		"local_path", localPath,
+		"content_type", event.ContentType,
+		"size_bytes", event.SizeBytes,
+	)
+
+	if p.processingSleepMS > 0 {
 		select {
-		case <-time.After(time.Duration(p.processingSleepmMS) * time.Millisecond):
+		case <-time.After(time.Duration(p.processingSleepMS) * time.Millisecond):
 		case <-ctx.Done():
 			return ctx.Err()
 		}
