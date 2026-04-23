@@ -15,6 +15,7 @@ import (
 	"github.com/keshvan/rag-as-service/backend/services/ingestion-worker/internal/kafka"
 	"github.com/keshvan/rag-as-service/backend/services/ingestion-worker/internal/processor"
 	"github.com/keshvan/rag-as-service/backend/services/ingestion-worker/internal/repo"
+	"github.com/keshvan/rag-as-service/backend/services/ingestion-worker/internal/storage"
 )
 
 func main() {
@@ -49,8 +50,22 @@ func main() {
 	// Initialize repositories
 	docRepo := repo.NewDocumentsRepository(pool)
 
+	downloader, err := storage.NewS3Downloader(
+		context.Background(),
+		cfg.S3Endpoint,
+		cfg.S3Region,
+		cfg.S3Bucket,
+		cfg.S3AccessKeyID,
+		cfg.S3SecretAccessKey,
+		cfg.DownloadDir,
+	)
+	if err != nil {
+		logger.Error("Failed to create S3 downloader", "error", err)
+		os.Exit(1)
+	}
+
 	// Initialize processor
-	proc := processor.NewProcessor(docRepo, cfg.ProcessingSleepMS, logger)
+	proc := processor.NewProcessor(docRepo, downloader, cfg.ProcessingSleepMS, logger)
 
 	// Create Kafka consumer
 	logger.Info("Creating Kafka consumer",
