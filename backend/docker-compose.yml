@@ -45,6 +45,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      kafka:
+        condition: service_healthy
     ports:
       - "50052:50051"
     networks:
@@ -111,19 +113,27 @@ services:
     container_name: raas-zookeeper
     restart: unless-stopped
     environment:
+      KAFKA_OPTS: "-Dzookeeper.4lw.commands.whitelist=ruok"
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
     ports:
       - "2181:2181"
     networks:
       - backend
+    healthcheck:
+      test: ["CMD", "bash", "-c", "echo 'ruok' | nc localhost 2181 | grep imok"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
 
   kafka:
     image: confluentinc/cp-kafka:7.6.0
     container_name: raas-kafka
     restart: unless-stopped
     depends_on:
-      - zookeeper
+      zookeeper:
+        condition: service_healthy
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
@@ -137,6 +147,12 @@ services:
       - kafka_data:/var/lib/kafka/data
     networks:
       - backend
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-broker-api-versions --bootstrap-server localhost:9092 >/dev/null 2>&1"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
 
   ingestion-worker:
     build:
@@ -149,7 +165,7 @@ services:
       postgres:
         condition: service_healthy
       kafka:
-        condition: service_started
+        condition: service_healthy
       qdrant:
         condition: service_started
     networks:
