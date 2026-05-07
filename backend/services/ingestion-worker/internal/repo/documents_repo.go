@@ -3,6 +3,7 @@ package repo
 import (
 	"context"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -33,27 +34,45 @@ func (r *DocumentsRepository) GetStatus(ctx context.Context, orgID, docID string
 
 // MarkProcessing marks a document as processing
 func (r *DocumentsRepository) MarkProcessing(ctx context.Context, orgID, docID string) error {
-	_, err := r.pool.Exec(ctx,
+	cmd, err := r.pool.Exec(ctx,
 		`UPDATE rag_app.documents SET status='processing', updated_at=now() WHERE id=$1 AND organization_id=$2`,
 		docID, orgID,
 	)
-	return err
+	if err != nil {
+		return err
+	}
+	if cmd.RowsAffected() == 0 {
+		return pgx.ErrNoRows
+	}
+	return nil
 }
 
 // MarkIndexed marks a document as indexed
 func (r *DocumentsRepository) MarkIndexed(ctx context.Context, orgID, docID string) error {
-	_, err := r.pool.Exec(ctx,
+	cmd, err := r.pool.Exec(ctx,
 		`UPDATE rag_app.documents SET status='indexed', updated_at=now() WHERE id=$1 AND organization_id=$2`,
 		docID, orgID,
 	)
-	return err
+	if err != nil {
+		return err
+	}
+	if cmd.RowsAffected() == 0 {
+		return pgx.ErrNoRows
+	}
+	return nil
 }
 
 // MarkFailed marks a document as failed with an error message
 func (r *DocumentsRepository) MarkFailed(ctx context.Context, orgID, docID string, errMsg string) error {
-	_, err := r.pool.Exec(ctx,
+	cmd, err := r.pool.Exec(ctx,
 		`UPDATE rag_app.documents SET status='failed', error_message=$1, updated_at=now() WHERE id=$2 AND organization_id=$3`,
 		errMsg, docID, orgID,
 	)
-	return err
+	if err != nil {
+		return err
+	}
+	if cmd.RowsAffected() == 0 {
+		return pgx.ErrNoRows
+	}
+	return nil
 }
