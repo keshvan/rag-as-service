@@ -19,6 +19,18 @@ type Config struct {
 	S3AccessKeyID     string
 	S3SecretAccessKey string
 
+	YandexApiKey   string
+	YandexFolderID string
+	YandexBaseURL  string
+
+	QdrantHost       string
+	QdrantPort       int
+	QdrantAPIKey     string
+	QdrantCollection string
+	QdrantUseTLS     bool
+
+	WorkerConcurrency int
+
 	DownloadDir string
 }
 
@@ -41,6 +53,18 @@ func LoadConfig() *Config {
 		S3Bucket:          os.Getenv("S3_BUCKET"),
 		S3AccessKeyID:     os.Getenv("S3_ACCESS_KEY_ID"),
 		S3SecretAccessKey: os.Getenv("S3_SECRET_ACCESS_KEY"),
+
+		YandexApiKey:   os.Getenv("YANDEX_API_KEY"),
+		YandexFolderID: os.Getenv("YANDEX_FOLDER_ID"),
+		YandexBaseURL:  os.Getenv("YANDEX_BASE_URL"),
+
+		QdrantHost:       getEnvOrDefault("QDRANT_HOST", "localhost"),
+		QdrantPort:       getEnvAsInt("QDRANT_PORT", 6334),
+		QdrantAPIKey:     os.Getenv("QDRANT_API_KEY"),
+		QdrantCollection: getEnvOrDefault("QDRANT_COLLECTION", "documents"),
+		QdrantUseTLS:     getEnvOrDefault("QDRANT_USE_TLS", "false") == "true",
+
+		WorkerConcurrency: getEnvAsInt("WORKER_CONCURRENCY", 4),
 
 		DownloadDir: getEnvOrDefault("DOWNLOAD_DIR", "/tmp/raas-ingestion"),
 	}
