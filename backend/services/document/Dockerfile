@@ -9,6 +9,7 @@ COPY pkg/common ./pkg/common
 COPY services/document ./services/document
 COPY services/auth ./services/auth
 COPY services/gateway ./services/gateway
+COPY services/ingestion-worker ./services/ingestion-worker
 
 WORKDIR /workspace/services/document
 RUN go mod download
