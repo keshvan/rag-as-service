@@ -138,17 +138,121 @@
 
 ## 3.5 Retrieval Service
 
-### 5.1 Семантический поиск
+`Retrieval Service` - внутренний gRPC-сервис для семантического поиска по чанкам документов в Qdrant. Frontend не должен вызывать его напрямую: внешний трафик идет через API Gateway, а gateway прокидывает `organization_id` во внутренние gRPC-вызовы.
 
-**Приоритет:** Критический
+## Что умеет
 
-Требования:
+* Принимает gRPC-запрос `retrieval.v1.RetrievalService/Search`.
+* Получает `organization_id` из metadata `x-organization-id`.
+* Не выполняет поиск, если `organization_id` отсутствует.
+* Генерирует embedding запроса через общий пакет `pkg/common/embeddings` и Yandex AI.
+* Выполняет поиск похожих векторов в Qdrant.
+* Обязательно добавляет tenant-фильтр по `organization_id` в каждый Qdrant-запрос.
+* Возвращает найденные чанки: `id`, `document_id`, `chunk_id`, `text`, `score`, `metadata`.
+* Поддерживает `limit` и `score_threshold`.
 
-* Генерация embedding запроса
-* Поиск в векторной БД (Qdrant)
-* Обязательная фильтрация:
+## gRPC API
 
-  * organization_id
+Proto-файл: `backend/pkg/common/proto/retrieval/v1/retrieval.proto`
+
+Метод:
+
+```proto
+rpc Search(SearchRequest) returns (SearchResponse);
+```
+
+Пример запроса:
+
+```json
+{
+  "query": "о чем этот документ?",
+  "limit": 5,
+  "score_threshold": 0.3
+}
+```
+
+Пример ответа:
+
+```json
+{
+  "results": [
+    {
+      "id": "point-id",
+      "document_id": "document-id",
+      "chunk_id": "chunk-id",
+      "text": "релевантный текст чанка",
+      "score": 0.87,
+      "metadata": {
+        "page": "1"
+      }
+    }
+  ]
+}
+```
+
+## Конфигурация
+
+Пример env-файла: `backend/services/retrieval/.env.example`.
+
+Основные переменные:
+
+```env
+GRPC_HOST=0.0.0.0
+GRPC_PORT=50051
+
+YANDEX_API_KEY=replace-me
+YANDEX_FOLDER_ID=replace-me
+YANDEX_EMBEDDING_MODEL=
+YANDEX_EMBEDDING_BASE_URL=https://ai.api.cloud.yandex.net/v1
+
+QDRANT_URL=http://qdrant:6333
+QDRANT_COLLECTION=document_chunks
+QDRANT_VECTOR_NAME=
+
+RETRIEVAL_DEFAULT_LIMIT=5
+RETRIEVAL_MAX_LIMIT=20
+```
+
+Если `YANDEX_EMBEDDING_MODEL` не задан, сервис использует модель:
+
+```text
+emb://<YANDEX_FOLDER_ID>/text-search-query/latest
+```
+
+## Локальный запуск
+
+Из корня репозитория:
+
+```bash
+docker compose -f backend/docker-compose.yml up --build qdrant retrieval
+```
+
+Retrieval публикуется наружу на `localhost:50053`, внутри docker-сети слушает `50051`.
+
+Пример ручного запроса через `grpcurl`:
+
+```bash
+grpcurl -plaintext \
+  -H "x-organization-id: <organization-id>" \
+  -d '{"query":"текст запроса","limit":5}' \
+  localhost:50053 retrieval.v1.RetrievalService/Search
+```
+
+## Ожидаемый payload в Qdrant
+
+Чтобы поиск работал корректно и безопасно, при индексации каждый point в Qdrant должен иметь payload минимум с такими полями:
+
+```json
+{
+  "organization_id": "tenant-id",
+  "document_id": "document-id",
+  "chunk_id": "chunk-id",
+  "text": "chunk text"
+}
+```
+
+`organization_id` обязателен: Retrieval фильтрует по нему каждый поиск и не должен возвращать чанки других организаций.
+
 
 ---
 
@@ -567,119 +671,3 @@ User → API → Retrieval → LLM → Ответ
 
 ---
 
-# Retrieval Service
-
-`Retrieval Service` - внутренний gRPC-сервис для семантического поиска по чанкам документов в Qdrant. Frontend не должен вызывать его напрямую: внешний трафик идет через API Gateway, а gateway прокидывает `organization_id` во внутренние gRPC-вызовы.
-
-## Что умеет
-
-* Принимает gRPC-запрос `retrieval.v1.RetrievalService/Search`.
-* Получает `organization_id` из metadata `x-organization-id`.
-* Не выполняет поиск, если `organization_id` отсутствует.
-* Генерирует embedding запроса через общий пакет `pkg/common/embeddings` и Yandex AI.
-* Выполняет поиск похожих векторов в Qdrant.
-* Обязательно добавляет tenant-фильтр по `organization_id` в каждый Qdrant-запрос.
-* Возвращает найденные чанки: `id`, `document_id`, `chunk_id`, `text`, `score`, `metadata`.
-* Поддерживает `limit` и `score_threshold`.
-
-## gRPC API
-
-Proto-файл: `backend/pkg/common/proto/retrieval/v1/retrieval.proto`
-
-Метод:
-
-```proto
-rpc Search(SearchRequest) returns (SearchResponse);
-```
-
-Пример запроса:
-
-```json
-{
-  "query": "о чем этот документ?",
-  "limit": 5,
-  "score_threshold": 0.3
-}
-```
-
-Пример ответа:
-
-```json
-{
-  "results": [
-    {
-      "id": "point-id",
-      "document_id": "document-id",
-      "chunk_id": "chunk-id",
-      "text": "релевантный текст чанка",
-      "score": 0.87,
-      "metadata": {
-        "page": "1"
-      }
-    }
-  ]
-}
-```
-
-## Конфигурация
-
-Пример env-файла: `backend/services/retrieval/.env.example`.
-
-Основные переменные:
-
-```env
-GRPC_HOST=0.0.0.0
-GRPC_PORT=50051
-
-YANDEX_API_KEY=replace-me
-YANDEX_FOLDER_ID=replace-me
-YANDEX_EMBEDDING_MODEL=
-YANDEX_EMBEDDING_BASE_URL=https://ai.api.cloud.yandex.net/v1
-
-QDRANT_URL=http://qdrant:6333
-QDRANT_COLLECTION=document_chunks
-QDRANT_VECTOR_NAME=
-
-RETRIEVAL_DEFAULT_LIMIT=5
-RETRIEVAL_MAX_LIMIT=20
-```
-
-Если `YANDEX_EMBEDDING_MODEL` не задан, сервис использует модель:
-
-```text
-emb://<YANDEX_FOLDER_ID>/text-search-query/latest
-```
-
-## Локальный запуск
-
-Из корня репозитория:
-
-```bash
-docker compose -f backend/docker-compose.yml up --build qdrant retrieval
-```
-
-Retrieval публикуется наружу на `localhost:50053`, внутри docker-сети слушает `50051`.
-
-Пример ручного запроса через `grpcurl`:
-
-```bash
-grpcurl -plaintext \
-  -H "x-organization-id: <organization-id>" \
-  -d '{"query":"текст запроса","limit":5}' \
-  localhost:50053 retrieval.v1.RetrievalService/Search
-```
-
-## Ожидаемый payload в Qdrant
-
-Чтобы поиск работал корректно и безопасно, при индексации каждый point в Qdrant должен иметь payload минимум с такими полями:
-
-```json
-{
-  "organization_id": "tenant-id",
-  "document_id": "document-id",
-  "chunk_id": "chunk-id",
-  "text": "chunk text"
-}
-```
-
-`organization_id` обязателен: Retrieval фильтрует по нему каждый поиск и не должен возвращать чанки других организаций.
