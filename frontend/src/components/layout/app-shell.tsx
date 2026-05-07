@@ -1,11 +1,14 @@
 "use client";
 
 import { useEffect, useState, type PropsWithChildren } from "react";
+import { usePathname } from "next/navigation";
 import { Header } from "@/components/layout/header";
 import { Sidebar } from "@/components/layout/sidebar";
 
 export function AppShell({ children }: PropsWithChildren) {
+  const pathname = usePathname();
   const [isSidebarOpen, setSidebarOpen] = useState(false);
+  const isAuthPage = pathname === "/login" || pathname === "/register" || pathname === "/verification";
 
   useEffect(() => {
     const onResize = () => {
@@ -17,6 +20,10 @@ export function AppShell({ children }: PropsWithChildren) {
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
   }, []);
+
+  if (isAuthPage) {
+    return <div className="min-h-screen bg-page text-foreground">{children}</div>;
+  }
 
   return (
     <div className="min-h-screen bg-page text-foreground">

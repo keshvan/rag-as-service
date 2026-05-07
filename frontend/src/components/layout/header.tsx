@@ -1,7 +1,9 @@
 "use client";
 
+import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Bell, Menu, Search } from "lucide-react";
+import { useAuth } from "@/features/auth/providers/auth-provider";
 import { resolvePageMeta } from "@/lib/site";
 
 type HeaderProps = {
@@ -11,6 +13,7 @@ type HeaderProps = {
 export function Header({ onOpenSidebar }: HeaderProps) {
   const pathname = usePathname();
   const pageMeta = resolvePageMeta(pathname);
+  const { user } = useAuth();
 
   return (
     <header className="sticky top-0 z-20 border-b border-border/70 bg-page/80 backdrop-blur">
@@ -44,13 +47,16 @@ export function Header({ onOpenSidebar }: HeaderProps) {
             <Bell className="h-4 w-4" />
           </button>
 
-          <div className="flex items-center gap-3 rounded-xl border border-border/70 bg-panel px-3 py-2 shadow-sm">
+          <Link
+            href="/profile"
+            className="flex items-center gap-3 rounded-xl border border-border/70 bg-panel px-3 py-2 shadow-sm transition-colors hover:border-accent/40 hover:bg-white"
+          >
             <div className="h-8 w-8 rounded-full bg-gradient-to-br from-cyan-600 to-amber-400" />
             <div className="leading-tight">
-              <p className="text-sm font-medium text-foreground">Дарья Админ</p>
-              <p className="text-xs text-muted">администратор</p>
+              <p className="text-sm font-medium text-foreground">Профиль</p>
+              <p className="text-xs text-muted">{user ? `GUID: ${user.guid}` : "Открыть страницу пользователя"}</p>
             </div>
-          </div>
+          </Link>
         </div>
       </div>
     </header>

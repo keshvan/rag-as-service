@@ -11,7 +11,11 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/keshvan/rag-as-service/backend/pkg/common/embeddings"
+	"github.com/keshvan/rag-as-service/backend/pkg/common/qdrant"
+	"github.com/keshvan/rag-as-service/backend/services/ingestion-worker/internal/chunking"
 	"github.com/keshvan/rag-as-service/backend/services/ingestion-worker/internal/config"
+	"github.com/keshvan/rag-as-service/backend/services/ingestion-worker/internal/extractor"
 	"github.com/keshvan/rag-as-service/backend/services/ingestion-worker/internal/kafka"
 	"github.com/keshvan/rag-as-service/backend/services/ingestion-worker/internal/processor"
 	"github.com/keshvan/rag-as-service/backend/services/ingestion-worker/internal/repo"
@@ -64,8 +68,42 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Initialize embedder from pkg/common/embeddings
+	embedder, err := embeddings.NewYandexAIEmbedder(embeddings.YandexAIConfig{
+		ApiKey:   cfg.YandexApiKey,
+		FolderID: cfg.YandexFolderID,
+		BaseURL:  cfg.YandexBaseURL,
+	})
+	if err != nil {
+		logger.Error("Failed to create Yandex AI embedder", "error", err)
+		os.Exit(1)
+	}
+
+	// Initialize Qdrant vector store
+	qdrant, err := qdrant.NewQdrant(qdrant.QdrantConfig{
+		Host:       cfg.QdrantHost,
+		Port:       cfg.QdrantPort,
+		Collection: cfg.QdrantCollection,
+		UseTLS:     cfg.QdrantUseTLS,
+	})
+	if err != nil {
+		logger.Error("Failed to create Qdrant client", "error", err)
+		os.Exit(1)
+	}
+
+	ext := extractor.NewExtractor()
+	chunker := chunking.NewChunker(1000, 200)
+
 	// Initialize processor
-	proc := processor.NewProcessor(docRepo, downloader, cfg.ProcessingSleepMS, logger)
+	proc := processor.NewProcessor(
+		docRepo,
+		downloader,
+		ext,
+		chunker,
+		embedder,
+		qdrant,
+		logger,
+	)
 
 	// Create Kafka consumer
 	logger.Info("Creating Kafka consumer",

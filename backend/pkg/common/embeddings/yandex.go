@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	DefaultModel        = ""
+	DefaultModel        = "emb://%s/text-search-%s/latest"
 	DefaultBaseURL      = "https://ai.api.cloud.yandex.net/v1"
 	DefaultMaxBatchSize = 128
 )
@@ -19,15 +19,13 @@ const (
 type YandexAIConfig struct {
 	ApiKey       string
 	FolderID     string
-	Model        string
 	BaseURL      string
 	MaxBatchSize int
 }
 
 type YandexAIEmbedder struct {
 	client       *openai.Client
-	model        string
-	baseUrl      string
+	folderID     string
 	maxBatchSize int
 }
 
@@ -38,10 +36,6 @@ func NewYandexAIEmbedder(cfg YandexAIConfig) (*YandexAIEmbedder, error) {
 
 	if strings.TrimSpace(cfg.FolderID) == "" {
 		return nil, errors.New("yandex folder id is required")
-	}
-
-	if strings.TrimSpace(cfg.Model) == "" {
-		cfg.Model = DefaultModel
 	}
 
 	if strings.TrimSpace(cfg.BaseURL) == "" {
@@ -59,13 +53,12 @@ func NewYandexAIEmbedder(cfg YandexAIConfig) (*YandexAIEmbedder, error) {
 
 	return &YandexAIEmbedder{
 		client:       &client,
-		model:        cfg.Model,
-		baseUrl:      cfg.BaseURL,
+		folderID:     cfg.FolderID,
 		maxBatchSize: cfg.MaxBatchSize,
 	}, nil
 }
 
-func (e *YandexAIEmbedder) Embed(ctx context.Context, texts []string) ([][]float32, error) {
+func (e *YandexAIEmbedder) Embed(ctx context.Context, texts []string, textType string) ([][]float32, error) {
 	prepared := make([]string, 0, len(texts))
 	indexMap := make([]int, 0, len(texts))
 
@@ -90,7 +83,7 @@ func (e *YandexAIEmbedder) Embed(ctx context.Context, texts []string) ([][]float
 		}
 
 		batch := prepared[start:end]
-		vectors, err := e.embedBatch(ctx, batch)
+		vectors, err := e.embedBatch(ctx, batch, textType)
 		if err != nil {
 			return nil, err
 		}
@@ -112,38 +105,40 @@ func (e *YandexAIEmbedder) Embed(ctx context.Context, texts []string) ([][]float
 }
 
 func (e *YandexAIEmbedder) EmbedOne(ctx context.Context, text string) ([]float32, error) {
-	vectors, err := e.Embed(ctx, []string{text})
+	vectors, err := e.Embed(ctx, []string{text}, "query")
 	if err != nil {
 		return nil, err
 	}
 	return vectors[0], nil
 }
 
-func (e *YandexAIEmbedder) embedBatch(ctx context.Context, texts []string) ([][]float32, error) {
-	params := openai.EmbeddingNewParams{
-		Model: openai.EmbeddingModel(e.model),
-		Input: openai.EmbeddingNewParamsInputUnion{
-			OfArrayOfStrings: texts,
-		},
-		EncodingFormat: openai.EmbeddingNewParamsEncodingFormatFloat,
-	}
+func (e *YandexAIEmbedder) embedBatch(ctx context.Context, texts []string, textType string) ([][]float32, error) {
+	model := fmt.Sprintf(DefaultModel, e.folderID, textType)
+	vectors := make([][]float32, len(texts))
 
-	resp, err := e.client.Embeddings.New(ctx, params)
-	if err != nil {
-		return nil, fmt.Errorf("create embeddings: %w", err)
-	}
-
-	if len(resp.Data) != len(texts) {
-		return nil, fmt.Errorf("unexpected embeddings count: got=%d want=%d", len(resp.Data), len(texts))
-	}
-
-	vectors := make([][]float32, 0, len(resp.Data))
-	for _, item := range resp.Data {
-		vec := make([]float32, len(item.Embedding))
-		for i, v := range item.Embedding {
-			vec[i] = float32(v)
+	for i, text := range texts {
+		params := openai.EmbeddingNewParams{
+			Model: openai.EmbeddingModel(model),
+			Input: openai.EmbeddingNewParamsInputUnion{
+				OfString: openai.String(text),
+			},
+			EncodingFormat: openai.EmbeddingNewParamsEncodingFormatFloat,
 		}
-		vectors = append(vectors, vec)
+
+		resp, err := e.client.Embeddings.New(ctx, params)
+		if err != nil {
+			return nil, fmt.Errorf("create embeddings: %w", err)
+		}
+
+		if len(resp.Data) != 1 {
+			return nil, fmt.Errorf("unexpected embeddings count for text %d: got=%d want=1", i, len(resp.Data))
+		}
+
+		vec := make([]float32, len(resp.Data[0].Embedding))
+		for j, v := range resp.Data[0].Embedding {
+			vec[j] = float32(v)
+		}
+		vectors[i] = vec
 	}
 
 	return vectors, nil
