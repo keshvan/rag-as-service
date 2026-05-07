@@ -68,13 +68,14 @@ services:
       - "50053:50051"
     networks:
       - backend
-
+    
   qdrant:
     image: qdrant/qdrant:v1.5.1
     container_name: raas-qdrant
     restart: unless-stopped
     ports:
       - "6333:6333"
+      - "6334:6334"
     volumes:
       - qdrant_data:/qdrant/storage
     networks:
@@ -121,18 +122,6 @@ services:
     restart: unless-stopped
     ports:
       - "6379:6379"
-    networks:
-      - backend
-
-  qdrant:
-    image: qdrant/qdrant:latest
-    container_name: raas-qdrant
-    restart: unless-stopped
-    ports:
-      - "6333:6333"
-      - "6334:6334"
-    volumes:
-      - qdrant_data:/qdrant/storage
     networks:
       - backend
 
