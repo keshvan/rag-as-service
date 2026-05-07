@@ -70,6 +70,20 @@ services:
       retries: 10
     networks:
       - backend
+  
+  pgadmin:
+    container_name: pgadmin4
+    image: dpage/pgadmin4
+    restart: always
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@admin.com
+      PGADMIN_DEFAULT_PASSWORD: root
+    ports:
+      - "5050:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    networks:
+      - backend
 
   redis:
     image: redis:7-alpine
@@ -80,8 +94,77 @@ services:
     networks:
       - backend
 
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: raas-qdrant
+    restart: unless-stopped
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - qdrant_data:/qdrant/storage
+    networks:
+      - backend
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.6.0
+    container_name: raas-zookeeper
+    restart: unless-stopped
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "2181:2181"
+    networks:
+      - backend
+
+  kafka:
+    image: confluentinc/cp-kafka:7.6.0
+    container_name: raas-kafka
+    restart: unless-stopped
+    depends_on:
+      - zookeeper
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    ports:
+      - "9092:9092"
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+    networks:
+      - backend
+
+  ingestion-worker:
+    build:
+      context: .
+      dockerfile: services/ingestion-worker/Dockerfile
+    container_name: raas-ingestion-worker
+    env_file:
+      - services/ingestion-worker/.env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_started
+      qdrant:
+        condition: service_started
+    networks:
+      - backend
+    deploy:
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+
 volumes:
   postgres_data:
+  pgadmin_data:
+  qdrant_data:
+  kafka_data:
 
 networks:
   backend:
