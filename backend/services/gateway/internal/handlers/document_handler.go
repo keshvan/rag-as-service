@@ -3,6 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"net/http"
+	"strconv"
 
 	documentv1 "github.com/keshvan/rag-as-service/backend/pkg/common/gen/document/v1"
 	docClient "github.com/keshvan/rag-as-service/backend/services/gateway/internal/clients/document"
@@ -76,4 +77,49 @@ func (h *DocumentHandler) ConfirmUpload(w http.ResponseWriter, r *http.Request) 
 	}
 
 	writeJSON(w, http.StatusOK, map[string]string{"status": "uploaded"})
+}
+
+func (h *DocumentHandler) ListDocuments(w http.ResponseWriter, r *http.Request) {
+	limit := int32(0)
+	offset := int32(0)
+
+	if rawLimit := r.URL.Query().Get("limit"); rawLimit != "" {
+		parsedLimit, err := strconv.ParseInt(rawLimit, 10, 32)
+		if err != nil {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid request"})
+			return
+		}
+		limit = int32(parsedLimit)
+	}
+
+	if rawOffset := r.URL.Query().Get("offset"); rawOffset != "" {
+		parsedOffset, err := strconv.ParseInt(rawOffset, 10, 32)
+		if err != nil {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid request"})
+			return
+		}
+		offset = int32(parsedOffset)
+	}
+
+	resp, err := h.documentClient.ListDocuments(r.Context(), &documentv1.ListDocumentsRequest{
+		Limit:  limit,
+		Offset: offset,
+	})
+	if err != nil {
+		writeGRPCError(w, err)
+		return
+	}
+
+	items := make([]map[string]string, 0, len(resp.GetItems()))
+	for _, item := range resp.GetItems() {
+		items = append(items, map[string]string{
+			"id":           item.GetId(),
+			"file_name":    item.GetFileName(),
+			"content_type": item.GetContentType(),
+			"status":       item.GetStatus(),
+			"created_at":   item.GetCreatedAt(),
+		})
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{"items": items})
 }

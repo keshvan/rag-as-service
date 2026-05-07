@@ -28,6 +28,7 @@ func RegisterRoutes(r *chi.Mux, h Handlers, jwtSecret string) {
 			protected.Post("/tokens", h.Auth.GetTokenPairByUserGUID)
 			protected.Post("/logout", h.Auth.Logout)
 			protected.Post("/refresh", h.Auth.RefreshTokens)
+			protected.Get("/documents", h.Document.ListDocuments)
 			protected.Post("/documents/presign-upload", h.Document.InitUpload)
 			protected.Post("/documents/confirm", h.Document.ConfirmUpload)
 		})

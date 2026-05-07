@@ -34,7 +34,10 @@ func (c *Client) CompleteUpload(ctx context.Context, req *documentv1.CompleteUpl
 	return c.api.CompleteUpload(ctx, req)
 }
 
+func (c *Client) ListDocuments(ctx context.Context, req *documentv1.ListDocumentsRequest) (*documentv1.ListDocumentsResponse, error) {
+	return c.api.ListDocuments(ctx, req)
+}
+
 func (c *Client) Close() error {
 	return c.conn.Close()
 }
-
