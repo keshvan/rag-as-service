@@ -12,6 +12,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/keshvan/rag-as-service/backend/pkg/common/embeddings"
+	"github.com/keshvan/rag-as-service/backend/pkg/common/qdrant"
 	"github.com/keshvan/rag-as-service/backend/services/ingestion-worker/internal/chunking"
 	"github.com/keshvan/rag-as-service/backend/services/ingestion-worker/internal/config"
 	"github.com/keshvan/rag-as-service/backend/services/ingestion-worker/internal/extractor"
@@ -19,7 +20,6 @@ import (
 	"github.com/keshvan/rag-as-service/backend/services/ingestion-worker/internal/processor"
 	"github.com/keshvan/rag-as-service/backend/services/ingestion-worker/internal/repo"
 	"github.com/keshvan/rag-as-service/backend/services/ingestion-worker/internal/storage"
-	"github.com/keshvan/rag-as-service/backend/services/ingestion-worker/internal/vectorstore"
 )
 
 func main() {
@@ -80,10 +80,9 @@ func main() {
 	}
 
 	// Initialize Qdrant vector store
-	qdrant, err := vectorstore.NewQdrant(vectorstore.QdrantConfig{
+	qdrant, err := qdrant.NewQdrant(qdrant.QdrantConfig{
 		Host:       cfg.QdrantHost,
 		Port:       cfg.QdrantPort,
-		APIKey:     cfg.QdrantAPIKey,
 		Collection: cfg.QdrantCollection,
 		UseTLS:     cfg.QdrantUseTLS,
 	})

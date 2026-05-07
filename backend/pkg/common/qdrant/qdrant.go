@@ -1,4 +1,4 @@
-package vectorstore
+package qdrant
 
 import (
 	"context"
@@ -6,14 +6,17 @@ import (
 	"strconv"
 
 	"github.com/google/uuid"
-	"github.com/keshvan/rag-as-service/backend/services/ingestion-worker/internal/chunking"
 	"github.com/qdrant/go-client/qdrant"
 )
+
+type Chunk struct {
+	Index int
+	Text  string
+}
 
 type QdrantConfig struct {
 	Host       string
 	Port       int
-	APIKey     string
 	Collection string
 	UseTLS     bool
 }
@@ -34,7 +37,6 @@ func NewQdrant(cfg QdrantConfig) (*Qdrant, error) {
 	client, err := qdrant.NewClient(&qdrant.Config{
 		Host:   cfg.Host,
 		Port:   cfg.Port,
-		APIKey: cfg.APIKey,
 		UseTLS: cfg.UseTLS,
 	})
 	if err != nil {
@@ -79,7 +81,7 @@ func (q *Qdrant) EnsureCollection(ctx context.Context, dim uint64) error {
 func (q *Qdrant) ReplaceDocumentChunks(
 	ctx context.Context,
 	orgID, docID, objectKey, contentType string,
-	chunks []chunking.Chunk,
+	chunks []Chunk,
 	vectors [][]float32,
 ) error {
 	if len(chunks) == 0 {
