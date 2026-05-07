@@ -1,3 +1,5 @@
+import { DocumentUploadPanel } from "@/features/documents/components/document-upload-panel";
+
 const tableRows = [
   { file: "onboarding-guide.pdf", status: "processing", chunks: "-", updatedAt: "2 мин назад" },
   { file: "support-playbook-v2.docx", status: "indexed", chunks: "254", updatedAt: "18 мин назад" },
@@ -19,6 +21,8 @@ const statusLabelMap: Record<string, string> = {
 export default function DocumentsPage() {
   return (
     <section className="space-y-4">
+      <DocumentUploadPanel />
+
       <article className="rounded-2xl border border-border/70 bg-panel p-5 shadow-panel">
         <h2 className="text-lg font-semibold text-foreground">Очередь документов</h2>
         <p className="mt-1 text-sm text-muted">
