@@ -9,13 +9,13 @@ COPY pkg/common ./pkg/common
 COPY services/auth ./services/auth
 COPY services/gateway ./services/gateway
 COPY services/document ./services/document
-COPY services/ingestion-worker ./services/worker
+COPY services/ingestion-worker ./services/ingestion-worker
 
 WORKDIR /workspace/services/ingestion-worker
 RUN go mod download
 
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
-    go build -o /bin/ingestion-worker ./cmd
+    go build -o /bin/ingestion-worker ./cmd/worker
 
 FROM alpine:3.20
 
