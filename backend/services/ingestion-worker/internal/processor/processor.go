@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"log/slog"
 
+	"github.com/keshvan/rag-as-service/backend/pkg/common/qdrant"
 	"github.com/keshvan/rag-as-service/backend/services/ingestion-worker/internal/chunking"
 	"github.com/keshvan/rag-as-service/backend/services/ingestion-worker/internal/extractor"
 	"github.com/keshvan/rag-as-service/backend/services/ingestion-worker/internal/kafka"
 	"github.com/keshvan/rag-as-service/backend/services/ingestion-worker/internal/repo"
-	"github.com/keshvan/rag-as-service/backend/services/ingestion-worker/internal/vectorstore"
 )
 
 // Processor handles document ingestion processing
@@ -28,7 +28,7 @@ type Processor struct {
 	extractor         *extractor.Extractor
 	chunker           *chunking.Chunker
 	embedder          Embedder
-	vectorstore       *vectorstore.Qdrant
+	vectorstore       *qdrant.Qdrant
 	processingSleepMS int
 	logger            *slog.Logger
 }
@@ -40,7 +40,7 @@ func NewProcessor(
 	extractor *extractor.Extractor,
 	chunker *chunking.Chunker,
 	embedder Embedder,
-	vectorstore *vectorstore.Qdrant,
+	vectorstore *qdrant.Qdrant,
 	logger *slog.Logger,
 ) *Processor {
 	return &Processor{
@@ -136,6 +136,21 @@ func (p *Processor) Process(ctx context.Context, event *kafka.DocumentUploadedEv
 	texts := make([]string, len(chunks))
 	for i, chunk := range chunks {
 		texts[i] = chunk.Text
+	}
+
+	// Log chunk order for debugging
+	for i, chunk := range chunks {
+		preview := chunk.Text
+		if len([]rune(preview)) > 80 {
+			preview = string([]rune(preview)[:80]) + "..."
+		}
+		p.logger.Info("Chunk order",
+			"doc_id", event.DocumentID,
+			"chunk_index", chunk.Index,
+			"order", i,
+			"len", len([]rune(chunk.Text)),
+			"preview", preview,
+		)
 	}
 
 	vectors, err := p.embedder.Embed(ctx, texts, "doc")

@@ -25,7 +25,6 @@ type Config struct {
 
 	QdrantHost       string
 	QdrantPort       int
-	QdrantAPIKey     string
 	QdrantCollection string
 	QdrantUseTLS     bool
 
@@ -60,7 +59,6 @@ func LoadConfig() *Config {
 
 		QdrantHost:       getEnvOrDefault("QDRANT_HOST", "localhost"),
 		QdrantPort:       getEnvAsInt("QDRANT_PORT", 6334),
-		QdrantAPIKey:     os.Getenv("QDRANT_API_KEY"),
 		QdrantCollection: getEnvOrDefault("QDRANT_COLLECTION", "documents"),
 		QdrantUseTLS:     getEnvOrDefault("QDRANT_USE_TLS", "false") == "true",
 
