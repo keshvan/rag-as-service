@@ -1,0 +1,28 @@
+syntax = "proto3";
+
+package retrieval.v1;
+
+option go_package = "github.com/keshvan/rag-as-service/backend/pkg/common/gen/retrieval/v1;retrievalv1";
+
+service RetrievalService {
+  rpc Search(SearchRequest) returns (SearchResponse);
+}
+
+message SearchRequest {
+  string query = 1;
+  int32 limit = 2;
+  float score_threshold = 3;
+}
+
+message SearchResult {
+  string id = 1;
+  string document_id = 2;
+  string chunk_id = 3;
+  string text = 4;
+  float score = 5;
+  map<string, string> metadata = 6;
+}
+
+message SearchResponse {
+  repeated SearchResult results = 1;
+}
