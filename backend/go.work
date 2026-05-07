@@ -6,4 +6,5 @@ use (
 	./services/document
 	./services/gateway
 	./services/ingestion-worker
+	./services/retrieval
 )
