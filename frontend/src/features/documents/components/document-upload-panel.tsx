@@ -90,7 +90,11 @@ function toErrorMessage(error: unknown): string {
   return "Загрузка завершилась с неизвестной ошибкой.";
 }
 
-export function DocumentUploadPanel() {
+type DocumentUploadPanelProps = {
+  onUploadCompleted?: (documentID: string) => void | Promise<void>;
+};
+
+export function DocumentUploadPanel({ onUploadCompleted }: DocumentUploadPanelProps) {
   const inputRef = useRef<HTMLInputElement | null>(null);
 
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -189,6 +193,7 @@ export function DocumentUploadPanel() {
         upload: "done",
         confirm: "done",
       });
+      void onUploadCompleted?.(initUploadResponse.document_id);
       setSuccessMessage(`Загрузка завершена. ID документа: ${initUploadResponse.document_id}`);
     } catch (error) {
       setStepState((prevState) => markFailedStep(prevState, currentStep));
@@ -201,9 +206,6 @@ export function DocumentUploadPanel() {
   return (
     <article className="rounded-2xl border border-border/70 bg-panel p-5 shadow-panel">
       <h2 className="text-lg font-semibold text-foreground">Загрузка документа</h2>
-      <p className="mt-1 text-sm text-muted">
-        Сценарий: запрос signed URL, прямая загрузка файла в хранилище, затем подтверждение на бэкенде.
-      </p>
 
       <div className="mt-4 flex flex-col gap-3 lg:flex-row lg:items-center">
         <input
