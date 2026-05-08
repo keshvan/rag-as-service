@@ -20,16 +20,18 @@ type YandexAIConfig struct {
 	ApiKey       string
 	FolderID     string
 	BaseURL      string
+	Model        string
 	MaxBatchSize int
 }
 
-type YandexAIEmbedder struct {
+type YandexAIClient struct {
 	client       *openai.Client
 	folderID     string
+	model        string
 	maxBatchSize int
 }
 
-func NewYandexAIEmbedder(cfg YandexAIConfig) (*YandexAIEmbedder, error) {
+func NewYandexAIClient(cfg YandexAIConfig) (*YandexAIClient, error) {
 	if strings.TrimSpace(cfg.ApiKey) == "" {
 		return nil, errors.New("yandex api key is required")
 	}
@@ -42,6 +44,10 @@ func NewYandexAIEmbedder(cfg YandexAIConfig) (*YandexAIEmbedder, error) {
 		cfg.BaseURL = DefaultBaseURL
 	}
 
+	if strings.TrimSpace(cfg.Model) == "" {
+		cfg.Model = DefaultModel
+	}
+
 	if cfg.MaxBatchSize <= 0 {
 		cfg.MaxBatchSize = DefaultMaxBatchSize
 	}
@@ -49,16 +55,18 @@ func NewYandexAIEmbedder(cfg YandexAIConfig) (*YandexAIEmbedder, error) {
 	client := openai.NewClient(
 		option.WithAPIKey(cfg.ApiKey),
 		option.WithBaseURL(cfg.BaseURL),
+		option.WithProject(cfg.FolderID),
 	)
 
-	return &YandexAIEmbedder{
+	return &YandexAIClient{
 		client:       &client,
 		folderID:     cfg.FolderID,
+		model:        cfg.Model,
 		maxBatchSize: cfg.MaxBatchSize,
 	}, nil
 }
 
-func (e *YandexAIEmbedder) Embed(ctx context.Context, texts []string, textType string) ([][]float32, error) {
+func (e *YandexAIClient) Embed(ctx context.Context, texts []string, textType string) ([][]float32, error) {
 	prepared := make([]string, 0, len(texts))
 	indexMap := make([]int, 0, len(texts))
 
@@ -104,7 +112,7 @@ func (e *YandexAIEmbedder) Embed(ctx context.Context, texts []string, textType s
 	return final, nil
 }
 
-func (e *YandexAIEmbedder) EmbedOne(ctx context.Context, text string) ([]float32, error) {
+func (e *YandexAIClient) EmbedOne(ctx context.Context, text string) ([]float32, error) {
 	vectors, err := e.Embed(ctx, []string{text}, "query")
 	if err != nil {
 		return nil, err
@@ -112,8 +120,36 @@ func (e *YandexAIEmbedder) EmbedOne(ctx context.Context, text string) ([]float32
 	return vectors[0], nil
 }
 
-func (e *YandexAIEmbedder) embedBatch(ctx context.Context, texts []string, textType string) ([][]float32, error) {
-	model := fmt.Sprintf(DefaultModel, e.folderID, textType)
+func (e *YandexAIClient) Complete(ctx context.Context, model, systemPrompt, userPrompt string, temperature float64, maxTokens int64) (string, error) {
+	if strings.TrimSpace(model) == "" {
+		model = "yandexgpt-lite"
+	}
+	if !strings.HasPrefix(model, "gpt://") {
+		model = fmt.Sprintf("gpt://%s/%s", e.folderID, model)
+	}
+
+	resp, err := e.client.Chat.Completions.New(ctx, openai.ChatCompletionNewParams{
+		Model: openai.ChatModel(model),
+		Messages: []openai.ChatCompletionMessageParamUnion{
+			openai.SystemMessage(systemPrompt),
+			openai.UserMessage(userPrompt),
+		},
+		Temperature: openai.Float(temperature),
+		MaxTokens:   openai.Int(maxTokens),
+	})
+	if err != nil {
+		return "", fmt.Errorf("create chat completion: %w", err)
+	}
+
+	if len(resp.Choices) == 0 {
+		return "", errors.New("no choices in completion response")
+	}
+
+	return resp.Choices[0].Message.Content, nil
+}
+
+func (e *YandexAIClient) embedBatch(ctx context.Context, texts []string, textType string) ([][]float32, error) {
+	model := fmt.Sprintf(e.model, e.folderID, textType)
 	vectors := make([][]float32, len(texts))
 
 	for i, text := range texts {

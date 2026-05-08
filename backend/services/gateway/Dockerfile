@@ -10,6 +10,7 @@ COPY services/auth ./services/auth
 COPY services/gateway ./services/gateway
 COPY services/document ./services/document
 COPY services/ingestion-worker ./services/ingestion-worker
+COPY services/retrieval ./services/retrieval
 
 WORKDIR /workspace/services/gateway
 RUN go mod download

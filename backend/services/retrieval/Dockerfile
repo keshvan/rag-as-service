@@ -7,6 +7,10 @@ RUN apk add --no-cache ca-certificates tzdata
 COPY go.work go.work.sum ./
 COPY pkg/common ./pkg/common
 COPY services/retrieval ./services/retrieval
+COPY services/auth ./services/auth
+COPY services/gateway ./services/gateway
+COPY services/document ./services/document
+COPY services/ingestion-worker ./services/ingestion-worker
 
 WORKDIR /workspace/services/retrieval
 RUN go mod download

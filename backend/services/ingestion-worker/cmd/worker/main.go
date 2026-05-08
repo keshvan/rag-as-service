@@ -69,7 +69,7 @@ func main() {
 	}
 
 	// Initialize embedder from pkg/common/embeddings
-	embedder, err := embeddings.NewYandexAIEmbedder(embeddings.YandexAIConfig{
+	embedder, err := embeddings.NewYandexAIClient(embeddings.YandexAIConfig{
 		ApiKey:   cfg.YandexApiKey,
 		FolderID: cfg.YandexFolderID,
 		BaseURL:  cfg.YandexBaseURL,

@@ -7,10 +7,9 @@ import (
 )
 
 type Handlers struct {
-	Auth     *handlers.AuthHandler
-	Document *handlers.DocumentHandler
-	// RAG
-	// ...
+	Auth      *handlers.AuthHandler
+	Document  *handlers.DocumentHandler
+	Retrieval *handlers.RetrievalHandler
 }
 
 func RegisterRoutes(r *chi.Mux, h Handlers, jwtSecret string) {
@@ -31,6 +30,9 @@ func RegisterRoutes(r *chi.Mux, h Handlers, jwtSecret string) {
 			protected.Get("/documents", h.Document.ListDocuments)
 			protected.Post("/documents/presign-upload", h.Document.InitUpload)
 			protected.Post("/documents/confirm", h.Document.ConfirmUpload)
+
+			protected.Post("/retrieval/search", h.Retrieval.Search)
+			protected.Post("/rag/query", h.Retrieval.RAGQuery)
 		})
 	})
 }

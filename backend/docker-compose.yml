@@ -70,7 +70,7 @@ services:
       - backend
     
   qdrant:
-    image: qdrant/qdrant:v1.5.1
+    image: qdrant/qdrant:latest
     container_name: raas-qdrant
     restart: unless-stopped
     ports:
@@ -192,7 +192,7 @@ services:
         condition: on-failure
         delay: 5s
         max_attempts: 3
-
+  
 volumes:
   postgres_data:
   pgadmin_data:

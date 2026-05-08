@@ -23,10 +23,9 @@ type App struct {
 func NewApp(cfg *config.RetrievalConfig) (*App, error) {
 	log := slog.Default()
 
-	embedder, err := embeddings.NewYandexAIEmbedder(embeddings.YandexAIConfig{
+	embedder, err := embeddings.NewYandexAIClient(embeddings.YandexAIConfig{
 		ApiKey:       cfg.YandexAPIKey,
 		FolderID:     cfg.YandexFolderID,
-		Model:        embeddingModel(cfg),
 		BaseURL:      cfg.YandexEmbeddingBaseURL,
 		MaxBatchSize: cfg.YandexEmbeddingMaxBatchSize,
 	})
