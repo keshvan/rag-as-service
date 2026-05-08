@@ -4,9 +4,7 @@ import { VerificationForm } from "@/features/auth/components/verification-form";
 export default function VerificationPage() {
   return (
     <AuthFormShell
-      eyebrow="Verification"
-      title="Подтвердите email кодом из письма"
-      subtitle="После подтверждения учётная запись станет доступна для входа, а защищённые страницы откроются через обычный login flow."
+      title="Подтверждение email"
       footerText="Уже подтвердили почту?"
       footerHref="/login"
       footerLabel="Войти"

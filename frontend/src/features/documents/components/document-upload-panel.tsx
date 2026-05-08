@@ -19,24 +19,24 @@ const ACCEPTED_EXTENSIONS = new Set(["pdf", "txt", "docx"]);
 const ACCEPT_ATTRIBUTE = ".pdf,.txt,.docx";
 
 const STEP_DEFINITIONS: Array<{ key: StepName; label: string }> = [
-  { key: "select", label: "1. Выбор файла (PDF/TXT/DOCX)" },
-  { key: "presign", label: "2. Запрос signed URL у бэкенда" },
-  { key: "upload", label: "3. Прямая загрузка файла (PUT) в хранилище" },
-  { key: "confirm", label: "4. Уведомление бэкенда об успешной загрузке" },
+  { key: "select", label: "1. Выбор документа" },
+  { key: "presign", label: "2. Подготовка загрузки" },
+  { key: "upload", label: "3. Загрузка документа" },
+  { key: "confirm", label: "4. Передача в обработку" },
 ];
 
 const STEP_STATUS_LABEL: Record<StepStatus, string> = {
-  pending: "ожидание",
-  active: "в процессе",
-  done: "готово",
+  pending: "не начато",
+  active: "выполняется",
+  done: "завершено",
   error: "ошибка",
 };
 
 const STEP_STATUS_SYMBOL: Record<StepStatus, string> = {
-  pending: "o",
+  pending: "-",
   active: "...",
   done: "ok",
-  error: "x",
+  error: "!",
 };
 
 const STEP_STATUS_CLASS: Record<StepStatus, string> = {
