@@ -9,6 +9,7 @@ import (
 
 	authv1 "github.com/keshvan/rag-as-service/backend/pkg/common/gen/auth/v1"
 	authClient "github.com/keshvan/rag-as-service/backend/services/gateway/internal/clients/auth"
+	gatewayjwt "github.com/keshvan/rag-as-service/backend/services/gateway/internal/lib/jwt"
 	"github.com/keshvan/rag-as-service/backend/services/gateway/internal/middleware"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -16,11 +17,13 @@ import (
 
 type AuthHandler struct {
 	authClient *authClient.Client
+	jwtSecret  string
 }
 
-func NewAuthHandler(client *authClient.Client) *AuthHandler {
+func NewAuthHandler(client *authClient.Client, jwtSecret string) *AuthHandler {
 	return &AuthHandler{
 		authClient: client,
+		jwtSecret:  jwtSecret,
 	}
 }
 
@@ -179,20 +182,9 @@ func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *AuthHandler) RefreshTokens(w http.ResponseWriter, r *http.Request) {
-	userGUID, ok := userGUIDFromContext(r.Context())
-	if !ok {
-		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "missing user context"})
-		return
-	}
-
-	sessionID, ok := sessionIDFromContext(r.Context())
-	if !ok {
-		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "missing session context"})
-		return
-	}
-
 	var req struct {
 		RefreshToken string `json:"refresh_token"`
+		AccessToken  string `json:"access_token"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -200,9 +192,24 @@ func (h *AuthHandler) RefreshTokens(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	accessToken := strings.TrimSpace(req.AccessToken)
+	if accessToken == "" {
+		accessToken = extractBearerToken(r.Header.Get("Authorization"))
+	}
+	if accessToken == "" {
+		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "missing access token"})
+		return
+	}
+
+	claims, err := gatewayjwt.ParseTokenAllowExpired(accessToken, h.jwtSecret)
+	if err != nil {
+		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "invalid access token"})
+		return
+	}
+
 	resp, err := h.authClient.RefreshTokens(r.Context(), &authv1.RefreshTokensRequest{
-		UserGuid:     userGUID,
-		SessionId:    sessionID,
+		UserGuid:     claims.UserGUID,
+		SessionId:    claims.SessionID,
 		RefreshToken: req.RefreshToken,
 		UserAgent:    r.UserAgent(),
 		Ip:           clientIP(r),
@@ -268,12 +275,20 @@ func clientIP(r *http.Request) string {
 	return r.RemoteAddr
 }
 
-func userGUIDFromContext(ctx context.Context) (string, bool) {
-	v, ok := ctx.Value(middleware.UserGUIDKey).(string)
-	return v, ok
+func extractBearerToken(header string) string {
+	if header == "" {
+		return ""
+	}
+
+	parts := strings.SplitN(header, " ", 2)
+	if len(parts) != 2 || strings.ToLower(parts[0]) != "bearer" {
+		return ""
+	}
+
+	return strings.TrimSpace(parts[1])
 }
 
-func sessionIDFromContext(ctx context.Context) (string, bool) {
-	v, ok := ctx.Value(middleware.SessionIDKey).(string)
+func userGUIDFromContext(ctx context.Context) (string, bool) {
+	v, ok := ctx.Value(middleware.UserGUIDKey).(string)
 	return v, ok
 }

@@ -50,13 +50,13 @@ func New(cfg *config.GatewayConfig) (*App, error) {
 		return nil, fmt.Errorf("failed to init yandex llm client: %w", err)
 	}
 
-	authHandler := handlers.NewAuthHandler(authClient)
+	authHandler := handlers.NewAuthHandler(authClient, cfg.JWTSecret)
 	documentHandler := handlers.NewDocumentHandler(documentClient)
 	retrievalHandler := handlers.NewRetrievalHandler(retrievalClient, llmClient, cfg.YandexLLMModel)
 
 	appHandlers := router.Handlers{
-		Auth:     authHandler,
-		Document: documentHandler,
+		Auth:      authHandler,
+		Document:  documentHandler,
 		Retrieval: retrievalHandler,
 	}
 

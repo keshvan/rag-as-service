@@ -3,10 +3,9 @@ package repo
 import (
 	"context"
 	"errors"
-	"fmt"
 
-	"github.com/keshvan/rag-as-service/backend/services/auth/internal/entity"
 	"github.com/google/uuid"
+	"github.com/keshvan/rag-as-service/backend/services/auth/internal/entity"
 	"github.com/lib/pq"
 	"gorm.io/gorm"
 )
@@ -62,9 +61,9 @@ func (r *Repo) DeleteTokenByUserGUID(ctx context.Context, guid string) error {
 
 func (r *Repo) SaveOrganization(ctx context.Context, name string, url string) (string, error) {
 	organization := &entity.Organization{
-		ID: uuid.NewString(),
+		ID:   uuid.NewString(),
 		Name: name,
-		URL: url,
+		URL:  url,
 	}
 
 	if err := r.db.WithContext(ctx).Create(organization).Error; err != nil {
@@ -144,7 +143,6 @@ func (r *Repo) CreateOrganizationWithOwner(
 	return user.GUID, organization.ID, nil
 }
 
-
 // GetUserByEmail ищет пользователя по email.
 func (r *Repo) GetUserByEmail(ctx context.Context, email string) (entity.User, error) {
 	var user entity.User
@@ -170,16 +168,12 @@ func (r *Repo) GetUserByGUID(ctx context.Context, guid string) (entity.User, err
 }
 
 func (r *Repo) UserExistsByEmail(ctx context.Context, email string) (bool, error) {
-	fmt.Printf("=== DEBUG UserExistsByEmail: checking email: %s ===\n", email)
-
 	var count int64
 	err := r.db.WithContext(ctx).Model(&entity.User{}).Where("email = ?", email).Count(&count).Error
 	if err != nil {
-		fmt.Printf("=== DEBUG UserExistsByEmail: ERROR: %v ===\n", err)
 		return false, err
 	}
 
-	fmt.Printf("=== DEBUG UserExistsByEmail: count for %s: %d ===\n", email, count)
 	return count > 0, nil
 }
 

@@ -2,6 +2,7 @@ package config
 
 import (
 	"log"
+	"os"
 	"time"
 
 	"github.com/ilyakaznacheev/cleanenv"
@@ -48,6 +49,19 @@ func Load() *Config {
 		if err = cleanenv.ReadEnv(&config); err != nil {
 			log.Fatalf("cannot read env config: %s", err)
 		}
+	}
+
+	if config.Secret == "" {
+		config.Secret = os.Getenv("JWT_SECRET")
+	}
+	if config.Secret == "" {
+		log.Fatal("AUTH_SECRET or JWT_SECRET is required")
+	}
+	if config.AccessTokenTTL <= 0 {
+		config.AccessTokenTTL = 15 * time.Minute
+	}
+	if config.RefreshTokenTTL <= 0 {
+		config.RefreshTokenTTL = 30 * 24 * time.Hour
 	}
 
 	return &config

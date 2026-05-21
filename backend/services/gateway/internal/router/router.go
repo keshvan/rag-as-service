@@ -19,6 +19,7 @@ func RegisterRoutes(r *chi.Mux, h Handlers, jwtSecret string) {
 			authRouter.Post("/register", h.Auth.Register)
 			authRouter.Post("/verification", h.Auth.Verification)
 		})
+		v1.Post("/refresh", h.Auth.RefreshTokens)
 
 		v1.Group(func(protected chi.Router) {
 			protected.Use(middleware.AuthMiddleware(jwtSecret))
@@ -26,7 +27,6 @@ func RegisterRoutes(r *chi.Mux, h Handlers, jwtSecret string) {
 			protected.Get("/me", h.Auth.GetCurrentUserGUID)
 			protected.Post("/tokens", h.Auth.GetTokenPairByUserGUID)
 			protected.Post("/logout", h.Auth.Logout)
-			protected.Post("/refresh", h.Auth.RefreshTokens)
 			protected.Get("/documents", h.Document.ListDocuments)
 			protected.Post("/documents/presign-upload", h.Document.InitUpload)
 			protected.Post("/documents/confirm", h.Document.ConfirmUpload)

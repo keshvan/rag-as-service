@@ -65,6 +65,9 @@ func (s *AuthServer) Login(ctx context.Context, req *authv1.LoginRequest) (*auth
 
 	tokenPair, guid, err := s.auth.Login(ctx, req.GetEmail(), req.GetPassword(), req.GetUserAgent(), req.GetIp())
 	if err != nil {
+		if errors.Is(err, services.ErrInvalidCredentials) || errors.Is(err, services.ErrUserNotFound) {
+			return nil, status.Error(codes.Unauthenticated, services.ErrInvalidCredentials.Error())
+		}
 		return nil, mapError(err)
 	}
 
@@ -142,11 +145,11 @@ func mapError(err error) error {
 	case errors.Is(err, services.ErrInvalidToken):
 		return status.Error(codes.Unauthenticated, err.Error())
 	case errors.Is(err, services.ErrInvalidCode):
-		return status.Error(codes.Unauthenticated, err.Error())
+		return status.Error(codes.InvalidArgument, err.Error())
 	case errors.Is(err, services.ErrAccessDenied):
 		return status.Error(codes.PermissionDenied, err.Error())
 	case errors.Is(err, services.ErrUserNotFound):
-		return status.Error(codes.NotFound, err.Error())
+		return status.Error(codes.Unauthenticated, err.Error())
 	case errors.Is(err, services.ErrUserExists):
 		return status.Error(codes.AlreadyExists, err.Error())
 	case errors.Is(err, services.ErrOrganizationExists):
