@@ -666,7 +666,7 @@ User → API → Retrieval → LLM → Ответ
 <img width="465" height="424" alt="mermaid-diagram" src="https://github.com/user-attachments/assets/bcf9d79f-f5d8-4027-91a1-68b5110e0b14" />
 
 
-# Диаграмма контейнеров
+# Диаграмма компонентов
 <img width="821" height="958" alt="mermaid-diagram (1)" src="https://github.com/user-attachments/assets/81b92b38-7334-4c5d-a7d9-aeea8553e3b7" />
 
 ---
